@@ -1,0 +1,773 @@
+C************************************************************************************************
+C************************************************************************************************
+C*** Shearleg SADAF 2000 with Jib installed on Taklift 8 A-frame                     ************
+C*** Model 2 with weight update.                                                     ************
+C*** Run 3 using model 2, corrected for NAframe                                      ************
+C*** Model 4 with 500 mm eccentricity in the jib supports                            ************
+C************************************************************************************************
+C************************************************************************************************
+
+fini
+/cle
+RESUME,SADAF2000,db4 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\ 
+/nopr
+/nerr,-1
+/uis,msgpop,3
+/dele,fort,19
+/dele,,err
+/uis,abort,off
+/triad,rbot
+/mstart,tool,off
+/mstart,zoom,off
+*afun,deg
+/prep7
+
+C************************************************************************************************
+C*** Variable input *****************************************************************************
+C************************************************************************************************
+
+jj    = arg1 !Configuration with jib?; yes(1)/no(0),1
+alpha = arg2 !A-frame angle [deg]
+SWLA  = arg3 !Initial SWL for current angle of A-frame [t]
+beta  = arg4 !Jib offset [deg]
+SWLJ  = arg5 !Initial SWL for Jib [t]
+CGM   = arg6 !required GM [m]
+CIMO  = arg7 !static stability criterium [mrad]
+ITER  = arg8 !switch to start iteration
+
+
+C************************************************************************************************
+C*** Constant input *****************************************************************************
+C************************************************************************************************
+
+fold_off = 100                                 !deg folding frame offset from Jib
+
+*if,jj,eq,0,then
+  beta=0 $ SWLJ=0 $ fold_off=0
+*endif
+
+g = 10 !m/s2
+
+C*** Loading
+heel = 3   !deg
+trim = 2   !deg
+side = 3   !deg
+offl = 2   !deg
+Fd = 1.0  !duty factor
+Fh = 1.1  !hoist factor
+alphax = 0     !rad/s2
+alphay = 0     !rad/s2
+az = 0   !m/s2 at jib tip
+
+C*** Reeving
+nfA = 10       !number of falls per A-frame lower block
+*if,jj,eq,1,then
+  nbA =  2     !number of blocks on A-frame = return reeving falls
+  nbJ =  2     !number of blocks on Jib
+*else
+  nbA = 4
+  nbJ = 0
+*endif
+nfJ = 10       !number of falls per Jib lower block
+Dsheave = 1600 !mm
+blockA = 36    !28 t weight of one A-frame lower block (+ 8 t suspended wire)
+blockJ = 36    !28 t weight of one Jib lower block (+ 8 t suspended wire)
+
+C*** Limits and criteria
+CTop_f   = 31000 !kN Topping factored
+CTop_unf = 28000 !kN Topping unfactored
+CFol_f   = 18500 !kN Folding factored
+CFol_unf = 17000 !kN Folding unfactored
+CPivot   = 35000 !kN A-frame pivot
+CAframe  = 58500 !kN Axial force in A-frame (Refer to Taklift 8)
+CJib     = 36000 !kN Axial force in Jib
+CFFPivot = 14300 !kN Folding frame pivot
+CSall    =   211 !MPa Allowable stress in A-frame main section
+
+C*** Barge including waterballast
+L = 85.0 !m
+B = 30.0 !m original width
+D =  7.6 !m
+Barge = 9798 !t
+VCB = 4.76 !m
+FSM = 7664 !tm
+
+
+C************************************************************************************************
+C*** Build model ********************************************************************************
+C************************************************************************************************
+
+csdel,all
+
+C*** Define local cartesian coordinate systems at requested position and angles
+wpres                    !reset working plane
+wpoffs,-3000,,4000       !A-frame pivot
+wprota,,,-alpha          !A-frame angle
+ cswpla,11
+wpoffs,37700,,450        !Jib pivot
+wprota,,,beta            !Jib offset
+ cswpla,31
+wpoffs,,,1000            !folding frame pivot
+wprota,,,-fold_off       !folding frame offset
+ cswpla,41
+
+
+
+C*** Define local cartesian coordinate systems for base model 4
+wpres                    !reset working plane
+wpoffs,-3000,,4000       !A-frame pivot
+wprota,,,-60             !A-frame angle
+ cswpla,12
+wpoffs,37700,,450        !Jib pivot
+wprota,,,30              !Jib offset
+ cswpla,32
+
+wpres
+csys $ /psymb,csys
+
+
+C*** Modify base model
+
+/pnum,line $ /pnum,kp
+
+cmsel,,aframe
+csys,12 $ ltran,11,all,,,,,1 $ csys
+cmsel,,jib $ cmsel,a,folding
+*if,jj,eq,1,then
+  csys,32 $ ltran,31,all,,,,,1 $ csys
+*else
+  esel,,real,,61,71,10 $ edel,all
+  ksel,,real,,3 $ kcle,all
+  lcle,all
+*endif
+allsel $ cpintf,ux,101 $ cpintf,uz,101
+nsel,,loc,y,0,9000 $ cpintf,uy,101
+
+allsel $ /pnum,mat,1 $ /num,1 $ /eshape,0 $ /view,,,-1 $ /zoom,,off
+*if,ITER,ne,1,then
+  eplo
+*endif
+!/view,,-1,-1,1
+!/rep
+
+C*** Find nodes
+
+csys,11
+A1=node(34900, 4750,-1700) $ A2=node(34900,-4750,-1700)       !outer upper blocks on A-frame
+A3=node(33000, 1950,- 550) $ A4=node(33000,-1950,- 550)       !inner upper blocks on A-frame
+retA=node(31450,0,0650)                                       !return reeving on A-frame
+
+*if,jj,eq,1,then
+
+csys,31
+J1   =node(30000, 1850,-1400) $ J2   =node(30000,-1850,-1400) !upper blocks on Jib
+retJ1=node(30000, 1850,- 600) $ retJ2=node(30000,-1850,- 600) !return reeving on Jib
+
+csys,41
+retF1=node(19600, 3000,0) $ retF2=node(19600,-3000,0)         !Jib hoist sheaves on folding frame
+
+*endif
+
+csys
+retB=kp(-9000,0,1000)                                         !return reeving on barge
+
+
+C*** Calculate parameters
+
+csys
+
+*if,jj,eq,1,then
+  radiusA=nx(A1)/1000 !m outer A-frame blocks
+  radiusJ=nx(J1)/1000 !m Jib blocks
+  b_= atan((nz(retF1)-kz(retB)) / (nx(retF1)-kx(retB)))
+  b_retF = atan((nz(retF1)-kz(retB)) / (nx(retF1)-kx(retB)-Dsheave*sin(b_)))
+  *if,b_retF,lt,0,then
+    b_retF = 180 + b_retF
+  *endif
+  b_retJ= atan((nz(retF1)-nz(retJ1)) / (nx(retJ1)-nx(retF1)))
+*else
+  radiusA=(nx(A1)+nx(A3))/2000 !m all 4 A-frame blocks
+  radiusJ=0 $ b_retF=0 $ b_retJ=0
+*endif
+
+b_= atan((nz(retA)-kz(retB)) / (nx(retA)-kx(retB)))
+b_retA = atan((nz(retA)-kz(retB)) / (nx(retA)-kx(retB)-Dsheave*sin(b_)))
+
+c_ = atan( (nz(118)-nz(180)) / (nx(118)-nx(180)) ) !angle of topping tackle
+nmodif,node(-55150,    0,7400),,,,,,-c_
+
+
+C*** Initialise array parameters
+
+*dim,data,array,4,9
+*dim,Rwire,array,4,8
+*dim,Cwire,array,4,2
+*dim,RpivotG ,array,4,6
+*dim,Rstaygan,array,4,2
+*dim,RpivotA ,array,4,6
+*dim,RpivotJ ,array,4,6
+*dim,RpivotF ,array,4,6
+*dim,Rfolding,array,4,6
+*dim,Rstress ,array,4,1
+*dim,Usage   ,array,4,7
+
+
+C************************************************************************************************
+C************************************************************************************************
+C*** START LOOP TO FIND SAFE WORKING LOAD *******************************************************
+C************************************************************************************************
+C************************************************************************************************
+
+iimax = 500
+
+*DO,ii,1,iimax
+
+FlA = (SWLA+nbA*blockA)*g / (nfA*nbA) !kN unfactored line pull A-frame
+
+*if,jj,eq,1,then
+  FlJ = (SWLJ+nbJ*blockJ)*g / (nfJ*nbJ) !kN unfactored line pull Jib
+*else
+  FlJ = 0 
+*endif
+
+/title,I%ii%: A %alpha% deg, SWLA = %SWLA% t, J %beta% deg, SWLJ = %SWLJ% t
+
+
+C************************************************************************************************
+C*** Load cases for current A-frame and Jib angle ***********************************************
+C************************************************************************************************
+C***                                                                                          ***
+C*** 1) Unfactored, Offlead towards A-frame                                                   ***
+C*** 2) Factored, Offlead towards A-frame                                                     ***
+C*** 3) Unfactored, Offlead away from A-frame                                                 ***
+C*** 4) Factored, Offlead away from A-frame                                                   ***
+C***                                                                                          ***
+C*** Sidelead always in positive Y-direction                                                  ***
+C***                                                                                          ***
+C************************************************************************************************
+
+
+Cwire(1,1)=CTop_unf $ Cwire(1,2)=CFol_unf
+Cwire(2,1)=CTop_f   $ Cwire(2,2)=CFol_f
+Cwire(3,1)=CTop_unf $ Cwire(3,2)=CFol_unf
+Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
+
+/solu
+
+*do,lc,1,4
+
+  *if,lc,eq,1,then
+    C*** Define load case 1
+    Fdc=1.0 $ FhcA=1.0 $ FhcJ=1.0
+    offlc=-offl $ trimc=-trim $ alphayc=-alphay
+  *elseif,lc,eq,2,then
+    C*** Define load case 2
+    Fdc=Fd $ FhcA=Fh+az/g $ FhcJ=Fh+az/g
+    offlc=-offl $ trimc=-trim $ alphayc=-alphay
+  *elseif,lc,eq,3,then
+    C*** Define load case 3
+    Fdc=1.0 $ FhcA=1.0 $ FhcJ=1.0
+    offlc=+offl $ trimc=+trim $ alphayc=+alphay
+  *elseif,lc,eq,4,then
+    C*** Define load case 4
+    Fdc=Fd $ FhcA=Fh+az/g $ FhcJ=Fh+az/g
+    offlc=+offl $ trimc=+trim $ alphayc=+alphay
+  *endif
+  sidec=side
+  heelc=heel
+  alphaxc=alphax
+
+  data(lc,1)=lc
+  data(lc,2)=radiusA
+  data(lc,3)=SWLA
+  data(lc,4)=radiusJ
+  data(lc,5)=SWLJ
+  data(lc,6)=FhcA  !FhcJ
+  data(lc,7)=Fdc
+  data(lc,8)=offlc
+  data(lc,9)=sidec
+
+
+  C*** Constraints
+  d,node(-55150,    0,7400),roty,,,,,,rotx,ux,uy,uz  !striking gantry
+  d,node(- 3000,-8200,4000),  ux,,,,,,uz             !A-frame pivots
+  d,node(- 3000, 8200,4000),  ux,,,,,,uz
+  *if,side,ge,0,then
+    d,node(-3000, 8200,4000),uy
+  *else
+    d,node(-3000,-8200,4000),uy
+  *endif
+
+  C*** Self-weight and accelerations
+  axtot=-Fdc*((g+az)*sin(trimc)+alphayc*3.0)
+  aytot=-Fdc*((g+az)*sin(heelc)+alphaxc*3.0)
+  acel,axtot,aytot,Fdc*(g+az)
+
+  
+  C*** Upper blocks on A-frame
+  Rwire(lc,1)=nbA*FhcA*Fdc*nfA*FlA
+  *do,bb,1,nbA
+    f,A%bb%,fx, FhcA*Fdc*nfA*FlA*1000*sin(offlc)
+    f,A%bb%,fy, FhcA*Fdc*nfA*FlA*1000*sin(sidec)
+    f,A%bb%,fz,-FhcA*Fdc*nfA*FlA*1000
+  *enddo
+
+  C*** Return reeving on A-frame
+  f,retA,fx,-FhcA*Fdc*nbA*FlA*cos(b_retA)*1000
+  f,retA,fz,-FhcA*Fdc*nbA*FlA*sin(b_retA)*1000
+
+  *if,jj,eq,1,then
+
+  C*** Upper blocks on Jib
+  Rwire(lc,2)=nbJ*FhcJ*Fdc*nfJ*FlJ
+  *do,bb,1,nbJ
+    f,J%bb%,fx, FhcJ*Fdc*nfJ*FlJ*1000*sin(offlc)
+    f,J%bb%,fy, FhcJ*Fdc*nfJ*FlJ*1000*sin(sidec)
+    f,J%bb%,fz,-FhcJ*Fdc*nfJ*FlJ*1000
+  *enddo
+
+  C*** Return reeving on Jib
+  *do,rr,1,nbJ
+    f,retJ%rr%,fx,-FhcJ*Fdc*FlJ*cos(b_retJ)*1000
+    f,retJ%rr%,fz, FhcJ*Fdc*FlJ*sin(b_retJ)*1000
+  *enddo
+
+  C*** Guide sheaves on Folding frame
+  *do,rr,1,nbJ
+    f,retF%rr%,fx, FhcJ*Fdc*FlJ*cos(b_retJ)*1000 !wire to jib head
+    f,retF%rr%,fz,-FhcJ*Fdc*FlJ*sin(b_retJ)*1000
+    fcum,add
+    f,retF%rr%,fx,-FhcJ*Fdc*FlJ*cos(b_retF)*1000 !wire to guide sheave on deck
+    f,retF%rr%,fz,-FhcJ*Fdc*FlJ*sin(b_retF)*1000
+    fcum
+  *enddo
+
+  *endif
+
+  /pbc,acel,1 $ /pbc,u,1 $ /pbc,rot,1 $ /pbc,f,1 $ /esha $ /vsca,,2
+  *if,ITER,ne,1,then
+    eplo
+  *endif
+
+  lswrite,lc
+
+  lsclear,all
+
+*enddo
+
+
+C*** Weight and CoG
+fini
+/solu
+lsread,1
+irlf,-1
+psolve,elform
+psolve,elprep
+irlf
+lsclear,all
+*get,mc,elem,,mtot,x $ mc=mc/1000 !t
+*get,xc,elem,,mc,x
+*get,yc,elem,,mc,y
+*get,zc,elem,,mc,z
+
+
+C*** Load cases
+fini
+/solu
+lssolve,1,4
+
+lsclear,all
+
+
+C************************************************************************************************
+C*** Get results for current A-frame and Jib angle **********************************************
+C*** Note, that element numbers are used           **********************************************
+C************************************************************************************************
+
+
+/post1
+
+
+UP=0 $ UA=0 $ UJ=0 $ US=0 $ UF=0 $ STEPFAC = 1.0
+
+
+*do,lc,1,4
+
+set,lc
+
+C*** Forces in topping, folding tackles and stays
+FtackA1 = 0 $ FtackA2 = 0 $ FtackA=(FtackA1+FtackA2)/1000 $ Rwire(lc,3)=FtackA
+*get,FstayA1,elem,95,smisc,1 $ *get,FstayA2,elem,94,smisc,1 $ FstayA=(FstayA1+FstayA2)/1000 $ Rwire(lc,4)=FstayA
+*if,jj,eq,1,then
+  *get,FtackJ1,elem, 97,smisc,1 $ *get,FtackJ2,elem, 96,smisc,1 $ FtackJ=(FtackJ1+FtackJ2)/1000 $ Rwire(lc,5)=FtackJ
+  *get,FstayJ1,elem, 99,smisc,1 $ *get,FstayJ2,elem, 98,smisc,1 $ FstayJ=(FstayJ1+FstayJ2)/1000 $ Rwire(lc,6)=FstayJ
+*else
+  FtackJ=0 $ FstayJ=0
+*endif
+
+C*** Forces on A-frame pivot and striking gantry in global (barge) directions
+nsel,,node,,node(-3000, 8200,4000) $ esln $ fsum $ allsel
+*get,fxpg1,fsum,,item,fx $ fxpg1=fxpg1/1000 $ RpivotG(lc,1)=fxpg1
+*get,fypg1,fsum,,item,fy $ fypg1=fypg1/1000 $ RpivotG(lc,2)=fypg1
+*get,fzpg1,fsum,,item,fz $ fzpg1=fzpg1/1000 $ RpivotG(lc,3)=fzpg1
+nsel,,node,,node(-3000,-8200,4000) $ esln $ fsum $ allsel
+*get,fxpg2,fsum,,item,fx $ fxpg2=fxpg2/1000 $ RpivotG(lc,4)=fxpg2
+*get,fypg2,fsum,,item,fy $ fypg2=fypg2/1000 $ RpivotG(lc,5)=fypg2
+*get,fzpg2,fsum,,item,fz $ fzpg2=fzpg2/1000 $ RpivotG(lc,6)=fzpg2
+nsel,,node,,node(-55150,0,7400) $ esln $ fsum $ allsel
+*get,fxsg,fsum,,item,fx $ fxsg=fxsg/1000 $ Rstaygan(lc,1)=fxsg
+*get,fzsg,fsum,,item,fz $ fzsg=fzsg/1000 $ Rstaygan(lc,2)=fzsg
+
+C*** Pivot forces in local directions of A-frame
+*get,Fupa1,elem, 37,smisc,1 $ Fupa1=-Fupa1/1000 $ RpivotA(lc,1)=Fupa1
+*get,Fvpa1,elem, 37,smisc,2 $ Fvpa1=-Fvpa1/1000 $ RpivotA(lc,2)=Fvpa1
+*get,Fwpa1,elem, 37,smisc,3 $ Fwpa1=-Fwpa1/1000 $ RpivotA(lc,3)=Fwpa1
+*get,Fupa2,elem, 36,smisc,1 $ Fupa2=-Fupa2/1000 $ RpivotA(lc,4)=Fupa2
+*get,Fvpa2,elem, 36,smisc,2 $ Fvpa2=-Fvpa2/1000 $ RpivotA(lc,5)=Fvpa2
+*get,Fwpa2,elem, 36,smisc,3 $ Fwpa2=-Fwpa2/1000 $ RpivotA(lc,6)=Fwpa2
+
+C*** Axial force in A-frame
+*get,na1,elem, 60,smisc,7 $ na1=-na1/1000
+*get,na2,elem, 61,smisc,7 $ na2=-na2/1000
+NAframe=na1+na2 $ Rwire(lc,7)=NAframe
+
+C*** Stress in St 52-3N A-frame main section
+*get,Sell,elem,45,nmisc,4 $ Sell = abs(Sell) $ RStress(lc,1)=Sell
+
+*if,jj,eq,1,then
+
+C*** Pivot forces in local directions of Jib
+C*** For load on Jib pivot support, Folding frame load is to be added
+*get,Fupj1,elem,  4,smisc,1 $ Fupj1=-Fupj1/1000 $ RpivotJ(lc,1)=Fupj1
+*get,Fvpj1,elem,  4,smisc,2 $ Fvpj1=-Fvpj1/1000 $ RpivotJ(lc,2)=Fvpj1
+*get,Fwpj1,elem,  4,smisc,3 $ Fwpj1=-Fwpj1/1000 $ RpivotJ(lc,3)=Fwpj1
+*get,Fupj2,elem,  3,smisc,1 $ Fupj2=-Fupj2/1000 $ RpivotJ(lc,4)=Fupj2
+*get,Fvpj2,elem,  3,smisc,2 $ Fvpj2=-Fvpj2/1000 $ RpivotJ(lc,5)=Fvpj2
+*get,Fwpj2,elem,  3,smisc,3 $ Fwpj2=-Fwpj2/1000 $ RpivotJ(lc,6)=Fwpj2
+
+C*** Axial force in Jib
+NJib=Fupj1+Fupj2 $ Rwire(lc,8)=NJib
+
+C*** Pivot forces in local directions of Folding frame
+*get,Fupf1,elem, 82,smisc,1 $ Fupf1=-Fupf1/1000 $ RpivotF(lc,1)=Fupf1
+*get,Fvpf1,elem, 82,smisc,2 $ Fvpf1=-Fvpf1/1000 $ RpivotF(lc,2)=Fvpf1
+*get,Fwpf1,elem, 82,smisc,3 $ Fwpf1=-Fwpf1/1000 $ RpivotF(lc,3)=Fwpf1
+*get,Fupf2,elem, 83,smisc,1 $ Fupf2=-Fupf2/1000 $ RpivotF(lc,4)=Fupf2
+*get,Fvpf2,elem, 83,smisc,2 $ Fvpf2=-Fvpf2/1000 $ RpivotF(lc,5)=Fvpf2
+*get,Fwpf2,elem, 83,smisc,3 $ Fwpf2=-Fwpf2/1000 $ RpivotF(lc,6)=Fwpf2
+
+*else
+NJib=0
+*endif
+
+C*** Check criteria
+UTcur=          FstayA/Cwire(lc,1) $ Usage(lc,1)=UTcur
+UFcur=          FtackJ/Cwire(lc,2) $ Usage(lc,2)=UFcur
+UPcur=max(Fupa1,Fupa2)/CPivot      $ Usage(lc,3)=UPcur $ UP=max(UP,UPcur)
+UAcur=         NAframe/CAframe     $ Usage(lc,4)=UAcur $ UA=max(UA,UAcur)
+UJcur=            NJib/CJib        $ Usage(lc,5)=UJcur $ UJ=max(UJ,UJcur)
+UScur=            Sell/CSall       $ Usage(lc,6)=UScur $ US=max(US,UScur)
+UFcur=max(Fupf1,Fupf2)/CFFPivot    $ Usage(lc,7)=UFcur $ UF=max(UF,UFcur)
+
+*enddo
+
+
+UTU=max(Usage(1,1),Usage(3,1))
+UTF=max(Usage(2,1),Usage(4,1))
+UFU=max(Usage(1,2),Usage(3,2))
+UFF=max(Usage(2,2),Usage(4,2))
+
+
+C************************************************************************************************
+C*** Simplified static stability calculation of barge *******************************************
+C************************************************************************************************
+
+DELTA = Barge + mc + SWLA + nbA*blockA
+*if,nbA,eq,4,then
+  zbA=D+(nz(a1)+nz(a3))/2000
+*else
+  zbA=D+nz(a1)/1000
+*endif
+Sz = VCB*Barge + (D+zc/1000)*mc + zbA*(SWLA+nbA*blockA)
+
+*if,jj,eq,1,then
+  DELTA = DELTA + SWLJ + nbJ*blockJ
+  Sz = Sz + (D+nz(j1)/1000)*(SWLJ+nbJ*blockJ)
+*endif
+
+VCG = Sz/DELTA
+T = DELTA/(B*L)
+KM = T/2 + B*B/(12*T)
+GM = KM - VCG - FSM/DELTA
+theta0 = atan(2*(D-T)/B)
+IMO = 0.5*1.5*GM*(theta0*pi/180)**2
+
+UG=CGM/GM
+UI=CIMO/IMO
+*if,UG,le,0,then
+  UG = 9.99 $ UI = 9.99
+*endif
+UB=max(UG,UI)
+
+U=max(UTF,UTU,UFF,UFU,UP,UA,UJ,US,UF,UB)
+
+C************************************************************************************************
+C*** Iteration loop control *********************************************************************
+C************************************************************************************************
+
+*if,ITER,ne,1,then
+  *exit
+*endif
+
+*if,U,le,1,then
+
+  *EXIT
+
+*else
+
+  *if,(UG-U)*(UI-U),eq,0,then
+    STEPFAC = 0.1
+  *endif
+
+  *if,max(SWLA,SWLJ),lt,1000,then
+    sens = 2
+  *else
+    sens = 1
+  *endif
+
+  *if,U,lt,(1+0.01*sens),then
+    STEP =   1
+  *elseif,U,lt,(1+0.1*sens)
+    STEP =   10*STEPFAC
+  *elseif,U,lt,(1+sens)
+    STEP =  100*STEPFAC
+  *else
+    STEP = 300*STEPFAC
+  *endif
+
+  *if,ii,ne,iimax,then
+    SWLA = SWLA - STEP $ SWLA = max(SWLA,0)
+    SWLJ = SWLJ - STEP $ SWLJ = max(SWLJ,0)
+  *endif
+
+*endif
+
+*ENDDO
+
+C************************************************************************************************
+C************************************************************************************************
+C*** END LOOP TO FIND SAFE WORKING LOAD *********************************************************
+C************************************************************************************************
+C************************************************************************************************
+
+
+
+
+
+C************************************************************************************************
+C*** Write results for current A-frame and Jib angle to file ************************************
+C************************************************************************************************
+
+/nopr
+
+*if,jj,eq,1,then
+  *if,beta,lt,10,then
+    *if,alpha,lt,10,then
+      /out,results.0%alpha%.0%beta%,out
+    *else
+      /out,results.%alpha%.0%beta%,out
+    *endif
+  *else
+    *if,alpha,lt,10,then
+      /out,results.0%alpha%.%beta%,out
+    *else
+      /out,results.%alpha%.%beta%,out
+    *endif
+  *endif
+*else
+  *if,alpha,lt,10,then
+    /out,results.0%alpha%.__,out
+  *else
+    /out,results.%alpha%.__,out
+  *endif
+*endif
+
+*if,jj,eq,1,then
+  *vwrite,'A-FRAME',alpha,' DEG, JI','B OFFSET',beta,' DEG.'
+  (A,F3.0,2A,F4.0,A)
+*else
+  *vwrite,'A-FRAME',alpha,' DEG, ','NO JIB.'
+  (A,F3.0,3A,F3.0,A)
+*endif
+*vwrite
+(A)
+
+
+C*** Limits
+*vwrite,'CTop_f','CTop_unf','CFol_f','CFol_unf','CPivot','CAframe','CJib','CFFPivot','CSall'
+(9A)
+*vwrite,' [kN]',' [kN]',' [kN]',' [kN]',' [kN]',' [kN]',' [kN]',' [kN]',' [MPa]'
+(9A)
+*vwrite,CTop_f,CTop_unf,CFol_f,CFol_unf,CPivot,CAframe,CJib,CFFPivot,CSall
+(8F8.0,F8.1)
+*vwrite
+(A)
+
+
+C*** Mass and centre of gravity of finite element model
+*vwrite,'Mass','   xcog','   ycog','   zcog'
+(4A)
+*vwrite,' [t]','   [mm]','   [mm]','   [mm]'
+(4A)
+*vwrite,mc,xc,yc,zc
+(F7.2,3F8.0)
+*vwrite
+(A)
+
+
+C*** Position of upper blocks
+*vwrite,'Block','    x','    y','   z'
+(4A)
+*vwrite,' ','  [mm]','  [mm]','  [mm]'
+(4A)
+*vwrite,'Outer:',nx(a1),0,nz(a1)
+(A,3F8.0)
+*vwrite,'Inner:',nx(a3),0,nz(a3)
+(A,3F8.0)
+*if,jj,eq,1,then
+  *vwrite,'  Jib:',nx(j1),0,nz(j1)
+  (A,3F8.0)
+*endif
+*vwrite
+(A)
+
+
+C*** Input for static stability calculation of barge
+*vwrite,' L',' B',' D','Barge','VCB','FSM'
+(6A)
+*vwrite,' [m]','[m]','[m]','[t]','[m]','[tm]'
+(6A)
+*vwrite,L,B,D,Barge,VCB,FSM
+(3F8.1,F8.0,F8.2,F8.0)
+*vwrite
+(A)
+
+
+C*** Results of static stability calculation of barge
+*vwrite,' theta0','DELTA','VCG','T','KM','GM','IMO'
+(7A)
+*vwrite,' [deg]','[t]','[m]','[m]','[m]','[m]','[mrad]'
+(7A)
+*vwrite,theta0,DELTA,VCG,T,KM,GM,IMO
+(F8.3,F8.0,4F8.3,F8.4)
+*vwrite
+(A)
+
+
+C*** Load case information
+*vwrite,'Case','radius-A',' SWL-A','radius-J',' SWL-J','Fh','Fd','Offl','Side'
+(9A)
+*vwrite,' [-]','[m]','[t]','[m]','[t]','[-]','[-]','[deg]','[deg]'
+(9A)
+*vwrite,data(1,1),data(1,2),data(1,3),data(1,4),data(1,5),data(1,6),data(1,7),data(1,8),data(1,9)
+(F4.0,F8.1,F8.0,F8.1,F8.0,2F8.2,2F8.1)
+*vwrite
+(A)
+
+
+C*** Forces in topping, folding tackles and stays
+*vwrite,'Case','FhoistA','FhoistJ','FtackA','FstayA','FtackJ','FstayJ','NAframe','NJib'
+(9A)
+*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
+(9A)
+*vwrite,data(1,1),Rwire(1,1),Rwire(1,2),Rwire(1,3),Rwire(1,4),Rwire(1,5),Rwire(1,6),Rwire(1,7),Rwire(1,8)
+(F4.0,8F8.0)
+*vwrite
+(A)
+
+
+C*** Forces on A-frame pivot and striking gantry in global (barge) directions
+*vwrite,'Case','Fxpg1','Fypg1','Fzpg1','Fxpg2','Fypg2','Fzpg2','Fxsg','Fzsg'
+(9A)
+*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
+(9A)
+*vwrite,data(1,1),RpivotG(1,1),RpivotG(1,2),RpivotG(1,3),RpivotG(1,4),RpivotG(1,5),RpivotG(1,6),Rstaygan(1,1),Rstaygan(1,2)
+(F4.0,8F8.0)
+*vwrite
+(A)
+
+
+C*** Pivot forces in local directions of A-frame
+*vwrite,'Case','Fupa1','Fvpa1','Fwpa1','Fupa2','Fvpa2','Fwpa2'
+(7A)
+*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
+(7A)
+*vwrite,data(1,1),RpivotA(1,1),RpivotA(1,2),RpivotA(1,3),RpivotA(1,4),RpivotA(1,5),RpivotA(1,6)
+(F4.0,6F8.0)
+*vwrite
+(A)
+
+
+
+C*** Pivot forces in local directions of Jib
+C*** For load on Jib pivot support, Folding frame load is to be added
+*vwrite,'Case','Fupj1','Fvpj1','Fwpj1','Fupj2','Fvpj2','Fwpj2'
+(7A)
+*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
+(7A)
+*vwrite,data(1,1),RpivotJ(1,1),RpivotJ(1,2),RpivotJ(1,3),RpivotJ(1,4),RpivotJ(1,5),RpivotJ(1,6)
+(F4.0,6F8.0)
+*vwrite
+(A)
+
+
+C*** Pivot forces in local directions of Folding frame
+*vwrite,'Case','Fupf1','Fvpf1','Fwpf1','Fupf2','Fvpf2','Fwpf2'
+(7A)
+*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
+(7A)
+*vwrite,data(1,1),RpivotF(1,1),RpivotF(1,2),RpivotF(1,3),RpivotF(1,4),RpivotF(1,5),RpivotF(1,6)
+(F4.0,6F8.0)
+*vwrite
+(A)
+
+
+C*** Stresses
+*vwrite,'Case','Sell'
+(2A)
+*vwrite,' [-]','[MPa]'
+(2A)
+*vwrite,data(1,1),Rstress(1,1)
+(F4.0,F8.1)
+
+
+C*** Usage factors for crane components
+*vwrite,'Case','UT','UF','UP','UA','UJ','US','UF'
+(8A)
+*vwrite,data(1,1),Usage(1,1),Usage(1,2),Usage(1,3),Usage(1,4),Usage(1,5),Usage(1,6),Usage(1,7)
+(F4.0,7F8.3)
+*vwrite
+(A)
+
+
+C*** Number of iterations used
+*vwrite,ii,'  of',iimax,' ; Step=',STEP,' t'
+(F4.0,A,F4.0,A,F4.0,A)
+
+/out
+
+
+
+
+C************************************************************************************************
+C*** Write load capacity and results summary ****************************************************
+C************************************************************************************************
+
+/out,curve4H,out,,append
+*vwrite,radiusA,SWLA,radiusJ,SWLJ,UTF,UTU,UFF,UFU,UP,UA,UJ,US,UF,UB
+(F8.2,F8.0,F8.2,F8.0,10F6.2)
+
+
+/out
+/go
+/EOF

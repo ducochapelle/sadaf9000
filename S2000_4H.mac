@@ -8,8 +8,16 @@ C*******************************************************************************
 C************************************************************************************************
 
 fini
-/cle
-RESUME,SADAF2000,db4 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\ 
+/clear, nostart
+*if,ar10,eq,1,then
+  RESUME, SADAF2000,db3 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\ 
+*elseif,ar10,eq,2,then
+  RESUME, superwinch,db
+*elseif,ar10,eq,3,then
+  RESUME, strikingframe,db
+*elseif,ar10,eq,4,then
+  RESUME, SADAF2000,db3 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\ 
+*endif
 /nopr
 /nerr,-1
 /uis,msgpop,3
@@ -17,7 +25,7 @@ RESUME,SADAF2000,db4 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\
 /dele,,err
 /uis,abort,off
 /triad,rbot
-/mstart,tool,off
+/mstart,abbr,off
 /mstart,zoom,off
 *afun,deg
 /prep7
@@ -34,7 +42,8 @@ SWLJ  = arg5 !Initial SWL for Jib [t]
 CGM   = arg6 !required GM [m]
 CIMO  = arg7 !static stability criterium [mrad]
 ITER  = arg8 !switch to start iteration
-
+stri  = arg9 !lengthen the striking frame 
+conf  = ar10 !is model file
 
 C************************************************************************************************
 C*** Constant input *****************************************************************************
@@ -87,11 +96,12 @@ CSall    =   211 !MPa Allowable stress in A-frame main section
 C*** Barge including waterballast
 L = 85.0 !m
 B = 30.0 !m original width
+calculate_vcb = 0
 D =  7.6 !m
 Barge = 9798 !t
 VCB = 4.76 !m
 FSM = 7664 !tm
-
+SW = 1.025
 
 C************************************************************************************************
 C*** Build model ********************************************************************************
@@ -100,7 +110,7 @@ C*******************************************************************************
 csdel,all
 
 C*** Define local cartesian coordinate systems at requested position and angles
-wpres                    !reset working plane
+csys $ wpcsys            !reset working plane
 wpoffs,-3000,,4000       !A-frame pivot
 wprota,,,-alpha          !A-frame angle
  cswpla,11
@@ -114,15 +124,19 @@ wprota,,,-fold_off       !folding frame offset
 
 
 C*** Define local cartesian coordinate systems for base model 4
-wpres                    !reset working plane
+csys $ wpcsys            !reset working plane
 wpoffs,-3000,,4000       !A-frame pivot
 wprota,,,-60             !A-frame angle
  cswpla,12
 wpoffs,37700,,450        !Jib pivot
 wprota,,,30              !Jib offset
  cswpla,32
-
-wpres
+csys $ wpcsys			 
+! wpoffs,-3179.4,,5489.2   !Striking frame pivot
+! wprota,-90               !Striking frame offset
+ ! cswpla,33
+ 
+csys $ wpcsys
 csys $ /psymb,csys
 
 
@@ -140,8 +154,31 @@ cmsel,,jib $ cmsel,a,folding
   ksel,,real,,3 $ kcle,all
   lcle,all
 *endif
-allsel $ cpintf,ux,101 $ cpintf,uz,101
+allsel $ cpintf,ux,140 $ cpintf,uz,140
 nsel,,loc,y,0,9000 $ cpintf,uy,101
+
+*if, conf, eq, 3, then
+  csys,4
+  allsel
+  nwplan,-1, 193, 195, 197 ! yeah, find the nodes earlier, and refer to them.
+  nmodif,193,0,-stri
+  nwpave, 195
+  nmodif,195,0,-stri
+*elseif,conf,eq,4,then
+  WPSYS
+  csys,4  
+  nwpave,73,180
+  n,next,0,0,0
+  *get,n1,node,,num,max
+  nwpave,76,179
+  n,next,0,0,0  
+  *get,n2,node,,num,max
+  mat,7
+  type,8
+  real,71 
+  e,n1,56
+  e,n2,27
+*endif
 
 allsel $ /pnum,mat,1 $ /num,1 $ /eshape,0 $ /view,,,-1 $ /zoom,,off
 *if,ITER,ne,1,then
@@ -172,6 +209,7 @@ csys
 retB=kp(-9000,0,1000)                                         !return reeving on barge
 
 
+
 C*** Calculate parameters
 
 csys
@@ -196,11 +234,10 @@ b_retA = atan((nz(retA)-kz(retB)) / (nx(retA)-kx(retB)-Dsheave*sin(b_)))
 c_ = atan( (nz(118)-nz(180)) / (nx(118)-nx(180)) ) !angle of topping tackle
 nmodif,node(-55150,    0,7400),,,,,,-c_
 
-
 C*** Initialise array parameters
 
 *dim,data,array,4,9
-*dim,Rwire,array,4,8
+*dim,Rwire,array,4,9
 *dim,Cwire,array,4,2
 *dim,RpivotG ,array,4,6
 *dim,Rstaygan,array,4,2
@@ -297,12 +334,15 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
   *else
     d,node(-3000,-8200,4000),uy
   *endif
-
   C*** Self-weight and accelerations
   axtot=-Fdc*((g+az)*sin(trimc)+alphayc*3.0)
   aytot=-Fdc*((g+az)*sin(heelc)+alphaxc*3.0)
   acel,axtot,aytot,Fdc*(g+az)
 
+  *if,conf,eq,4,then
+    d,n1,ux,0,,n2,1,uy,uz
+  *endif
+  
   
   C*** Upper blocks on A-frame
   Rwire(lc,1)=nbA*FhcA*Fdc*nfA*FlA
@@ -344,7 +384,14 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
 
   *endif
 
-  /pbc,acel,1 $ /pbc,u,1 $ /pbc,rot,1 $ /pbc,f,1 $ /esha $ /vsca,,2
+  /pbc,all,0  
+  /pbc,acel,1 
+  /pbc,cp,,1  
+  /pbc,u,,1   
+  /pbc,rot,,1 
+  /pbc,nfor,,2
+  /esha
+  /vsca,,2
   *if,ITER,ne,1,then
     eplo
   *endif
@@ -352,9 +399,11 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
   lswrite,lc
 
   lsclear,all
-
 *enddo
 
+! *EXIT
+! *ENDDO
+! /eof
 
 C*** Weight and CoG
 fini
@@ -401,6 +450,10 @@ FtackA1 = 0 $ FtackA2 = 0 $ FtackA=(FtackA1+FtackA2)/1000 $ Rwire(lc,3)=FtackA
 *if,jj,eq,1,then
   *get,FtackJ1,elem, 97,smisc,1 $ *get,FtackJ2,elem, 96,smisc,1 $ FtackJ=(FtackJ1+FtackJ2)/1000 $ Rwire(lc,5)=FtackJ
   *get,FstayJ1,elem, 99,smisc,1 $ *get,FstayJ2,elem, 98,smisc,1 $ FstayJ=(FstayJ1+FstayJ2)/1000 $ Rwire(lc,6)=FstayJ
+  *if,conf,eq,4,then
+    *get,FauxiJ1,elem,111,smisc,1 $ *get,FauxiJ2,elem,112,smisc,1 $ FauxiJ=(FauxiJ1+FauxiJ2)/1000 $ Rwire(lc,9)=FauxiJ
+  *endif
+  
 *else
   FtackJ=0 $ FstayJ=0
 *endif
@@ -481,6 +534,22 @@ UFF=max(Usage(2,2),Usage(4,2))
 C************************************************************************************************
 C*** Simplified static stability calculation of barge *******************************************
 C************************************************************************************************
+*if,calculate_vcb,eq,1,then
+  !-- this part comes from that excel...
+  factor = (Barge+SWLJ+mc)/SW/B
+  *if, factor,lt,424.686,then
+    *if, factor,lt,379.17,then
+  	draft = (sqrt(73.525**2+2*3.7*factor)-73.525)/3.7
+    *else
+  	draft = (sqrt(83.023**2+4*0.822*(factor+21.938))-83.023)/2/0.822
+    *endif
+  *else
+    draft = (factor+43.487)/91.44
+  *endif
+  A_ = SW*B*L ! immersion [t/m]
+  VCB = draft-(draft/2.+(Barge+SWLJ+mc)/A_)/3.
+  !-- untill here, that is
+*endif
 
 DELTA = Barge + mc + SWLA + nbA*blockA
 *if,nbA,eq,4,then
@@ -676,12 +745,12 @@ C*** Load case information
 
 
 C*** Forces in topping, folding tackles and stays
-*vwrite,'Case','FhoistA','FhoistJ','FtackA','FstayA','FtackJ','FstayJ','NAframe','NJib'
-(9A)
-*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
-(9A)
+*vwrite,'Case','FhoistA','FhoistJ','FtackA','FstayA','FtackJ','FstayJ','NAframe','NJib', FauxiJ'
+(10A)
+*vwrite,' [-]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]','[kN]'
+(10A)
 *vwrite,data(1,1),Rwire(1,1),Rwire(1,2),Rwire(1,3),Rwire(1,4),Rwire(1,5),Rwire(1,6),Rwire(1,7),Rwire(1,8)
-(F4.0,8F8.0)
+(F4.0,9F8.0)
 *vwrite
 (A)
 
@@ -770,4 +839,3 @@ C*******************************************************************************
 
 /out
 /go
-/EOF

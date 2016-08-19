@@ -26,7 +26,7 @@ max_iter = 17		!-
 
 *do,angle,1,60,1
   
-  upper_bound = (sin(angle)*b/2+cos(angle)*h)/cos(angle)
+  upper_bound = +tan(angle)*b/2+h
   lower_bound = -tan(angle)*b/2
   
   v1=0
@@ -111,10 +111,12 @@ max_iter = 17		!-
   *ENDDO
   
   gma = tcg-((svcg-d)*sin(angle))
-  *if, gma, lt, gma1, and, gmmax, eq, 0, then
+  *if, gma, gt, gma1, then
+    sgm = sgm + (angle-angle1)*(gma+gma1)/2
+  *elseif, gmmax, eq, 0
     gmmax = nint(gma1+0.5)
-  *endif
-  *if, gma, lt, 0, and, anglemax, eq, 0, then
+	gmmaxangle = angle1
+  *elseif, gma, lt, 0, and, anglemax, eq, 0
     anglemax = nint(angle/5+2.5)*5
   *endif
   *if, gm0, eq, 0, then
@@ -125,6 +127,7 @@ max_iter = 17		!-
   GM(angle,3) = angle*gm0
   GM(angle,4) = d
   gma1 = gma
+  angle1 = angle
   
 *enddo
 

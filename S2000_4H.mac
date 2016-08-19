@@ -95,7 +95,7 @@ CSall    =   211 !MPa Allowable stress in A-frame main section
 
 C*** Barge including waterballast
 L = 85.0 !m
-B = 30.0 !m original width
+B = 30.5 !m original width
 calculate_vcb = 0
 D =  7.6 !m
 Barge = 9798 !t
@@ -155,7 +155,7 @@ cmsel,,jib $ cmsel,a,folding
   lcle,all
 *endif
 allsel $ cpintf,ux,140 $ cpintf,uz,140
-nsel,,loc,y,0,9000 $ cpintf,uy,101
+nsel,,loc,y,0,9000 $ cpintf,uy,140
 
 *if, conf, eq, 3, then
   csys,4

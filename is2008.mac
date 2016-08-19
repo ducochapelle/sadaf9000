@@ -1,0 +1,154 @@
+! Geometric Iterative Solver for Righting lever.
+!
+! Yes, you could do this with pressure, but why?
+fini
+/clear,nostart 
+/PREP7
+PNGR, DEFAULT
+*AFUN, deg
+
+mt =  10000 		!t
+vt =  mt/1.025 		!m3
+vt_error = 0.0005	! error margin for iterative solver
+svcg = 12.1 		!m
+
+h = 7.6				!m
+b = 30.48			!m
+l = 91.85			!m
+
+FWD_b = 8.335
+FWD_a = 5.071
+AFT_b = 9.500
+AFT_a = 4.620
+
+max_iter = 17		!-
+*dim, gm, table,60,4!-
+
+*do,angle,1,60,1
+  
+  upper_bound = (sin(angle)*b/2+cos(angle)*h)/cos(angle)
+  lower_bound = -tan(angle)*b/2
+  
+  v1=0
+  v2=0
+  d1=0
+  d2=0
+  d=vt/b/l
+  *DO,i,1,max_iter
+    ! ship, water, you know
+	CSYS,0 $ WPCSYS
+    BLOCK, -b/2,b/2,-l/2,l/2,-d,h-d
+
+	! fwd chamfer
+	alpha = atan(FWD_a/FWD_b)
+	beta = sin(alpha)*l/2
+	WPROTA,,alpha
+	WPOFFS,,,-d+FWD_a-beta,0,1,1
+	CSYS,4
+	RECTNG,-2*b,2*b,-2*l,2*l
+	CSYS,0 $ WPCSYS
+	VSBA,1,7
+	NUMCMP,all
+	
+	! aft chamfer
+	alpha = atan(AFT_a/AFT_b)
+	beta = sin(alpha)*l/2
+	WPROTA,,-alpha
+	WPOFFS,,,-d+AFT_a-beta,0,1,1
+	CSYS,4
+	RECTNG,-2*b,2*b,-2*l,2*l
+	CSYS,0 $ WPCSYS
+	VSBA,2,12
+	NUMCMP,all
+	vdele,1,2,,1
+	NUMCMP,all
+	
+	! water surface
+    RECTNG,-2*b,2*b,-2*l,2*l, 
+    WPROTA,,,angle  
+    VTRAN,4,1, , , ,1,1  
+    WPCSYS
+    VSBA, 1, 9
+	NUMCMP,all
+    
+    ! get underwater volume
+    vsel,,,,1
+    VSUM
+    *get, vn2, VOLU,0,CENT,X
+    vsel,,,,2
+    VSUM
+    *get, vn3, VOLU,0,CENT,X
+    *if,vn2,gt,vn3,then
+      vn = 1
+      tcg = vn2
+    *else
+      vn = 2
+      tcg = vn3
+    *endif
+    allsel
+    
+    ! get history so there can be sensible iteration
+    d1 = d2 $ d2 = d
+    v1 = v2 $ *GET,v2,VOLU,vn,VOLU
+    *if,abs(v2/vt-1),lt,vt_error,then
+	  ! /SHOW, PNG, png
+      ! /VIEW,  1,  0.457903065900    , -0.878383574628    ,  0.136992985452
+	  ! /auto,1
+	  ! vplot
+	  ! /SHOW, CLOSE
+	  vdele,all,,,1
+	  *exit
+	*endif
+    vdele,all,,,1
+    d = (vt-v2)/((v2-v1)/(d2-d1))+d2 ! iterator
+    
+    ! in case things get out of hand somehow
+    *if, d, lt, lower_bound,then
+      d = (d2+lower_bound)/2
+    *elseif, d, gt, upper_bound, then
+      d = (d2+upper_bound)/2
+    *endif
+  *ENDDO
+  
+  gma = tcg-((svcg-d)*sin(angle))
+  *if, gma, lt, gma1, and, gmmax, eq, 0, then
+    gmmax = nint(gma1+0.5)
+  *endif
+  *if, gma, lt, 0, and, anglemax, eq, 0, then
+    anglemax = nint(angle/5+2.5)*5
+  *endif
+  *if, gm0, eq, 0, then
+    gm0 = gma
+  *endif
+  GM(angle,1) = angle
+  GM(angle,2) = gma
+  GM(angle,3) = angle*gm0
+  GM(angle,4) = d
+  gma1 = gma
+  
+*enddo
+
+/GTHK,CURVE,1
+/XRANGE, 0, anglemax
+/YRANGE, 0, gmmax
+/AXLAB, X, angle [deg]
+/AXLAB, Y, GM [m]
+/SHOW, PNG, png
+*VPLOT,GM(1,1),GM(1,2),3
+/show, close
+
+! ffmpeg -framerate 5 -i file%03d.png -c:v libx264 -r 30 out.mp4
+
+
+! MPTEMP,,,,,,,,  
+! MPTEMP,1,0  
+! MPDATA,DENS,1,,7.86e6   
+! MPDATA,EX,  1,,210000e6
+! MPDATA,PRXY,1,,0.3   
+! ET,1,SHELL281   
+! ET,2,SOLID186   
+! VATT,       1, ,   2,       0   
+! LESIZE,_Y1, , ,10, , , , ,1 
+! MSHAPE,0,3d
+! MSHKEY,1
+! VMESH, all

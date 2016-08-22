@@ -1,28 +1,35 @@
 ! Geometric Iterative Solver for Righting lever.
-!
-! Yes, you could do this with pressure, but why?
+
 fini
 /clear,nostart 
 /PREP7
 PNGR, DEFAULT
 *AFUN, deg
 
-mt =  10000 		!t
+! ship load
+svcg = 6.5 		!m
+mt =  14666.0 		!t
 vt =  mt/1.025 		!m3
 vt_error = 0.0005	! error margin for iterative solver
-svcg = 12.1 		!m
 
+! ship dimensions
 h = 7.6				!m
 b = 30.48			!m
 l = 91.85			!m
 
-FWD_b = 8.335
-FWD_a = 5.071
-AFT_b = 9.500
-AFT_a = 4.620
+! fwd and aft chamfers
+FWD_b = 8.335		!m
+FWD_a = 5.071		!m
+AFT_b = 9.500		!m
+AFT_a = 4.620		!m
 
 max_iter = 17		!-
 *dim, gm, table,60,4!-
+
+gmmax = 0
+gm0 = 0
+anglemax = 0
+
 
 *do,angle,1,60,1
   
@@ -67,29 +74,33 @@ max_iter = 17		!-
     RECTNG,-2*b,2*b,-2*l,2*l, 
     WPROTA,,,angle  
     VTRAN,4,1, , , ,1,1  
-    WPCSYS
+    CSYS,0 $ WPCSYS
     VSBA, 1, 9
 	NUMCMP,all
     
     ! get underwater volume
     vsel,,,,1
     VSUM
-    *get, vn2, VOLU,0,CENT,X
+	*get, vn1z, VOLU, 0, cent, Z
+    *get, vn1x, VOLU,0,CENT,X
+	*GET, vn1v,VOLU,0,VOLU
     vsel,,,,2
     VSUM
-    *get, vn3, VOLU,0,CENT,X
-    *if,vn2,gt,vn3,then
-      vn = 1
-      tcg = vn2
+	*get, vn2z, VOLU, 0, CENT, Z
+    *get, vn2x, VOLU,0,CENT,X
+	*GET, vn2v,VOLU,0,VOLU
+    *if,vn1z,lt,vn2z,then
+      tcg = vn1x
+	  v2p = vn1v
     *else
-      vn = 2
-      tcg = vn3
+      tcg = vn2x
+	  v2p = vn2v
     *endif
     allsel
     
     ! get history so there can be sensible iteration
     d1 = d2 $ d2 = d
-    v1 = v2 $ *GET,v2,VOLU,vn,VOLU
+    v1 = v2 $ v2 = v2p
     *if,abs(v2/vt-1),lt,vt_error,then
 	  ! /SHOW, PNG, png
       ! /VIEW,  1,  0.457903065900    , -0.878383574628    ,  0.136992985452
@@ -112,7 +123,7 @@ max_iter = 17		!-
   
   gma = tcg-((svcg-d)*sin(angle))
   *if, gma, gt, gma1, then
-    sgm = sgm + (angle-angle1)*(gma+gma1)/2
+    sgm = sgm + 3.141592654/180*(angle-angle1)*(gma+gma1)/2
   *elseif, gmmax, eq, 0
     gmmax = nint(gma1+0.5)
 	gmmaxangle = angle1
@@ -139,19 +150,11 @@ max_iter = 17		!-
 /SHOW, PNG, png
 *VPLOT,GM(1,1),GM(1,2),3
 /show, close
+/out, is2008, out,,append
+*vwrite, mt, svcg, gmmaxangle, sgm
+(F8.0, 3F8.3)
+*status, GM
+/out
+
 
 ! ffmpeg -framerate 5 -i file%03d.png -c:v libx264 -r 30 out.mp4
-
-
-! MPTEMP,,,,,,,,  
-! MPTEMP,1,0  
-! MPDATA,DENS,1,,7.86e6   
-! MPDATA,EX,  1,,210000e6
-! MPDATA,PRXY,1,,0.3   
-! ET,1,SHELL281   
-! ET,2,SOLID186   
-! VATT,       1, ,   2,       0   
-! LESIZE,_Y1, , ,10, , , , ,1 
-! MSHAPE,0,3d
-! MSHKEY,1
-! VMESH, all

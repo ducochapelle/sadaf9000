@@ -6,32 +6,47 @@ fini
 PNGR, DEFAULT
 *AFUN, deg
 
+! going full circle
+*if, arg1, eq, 0, then $ arg1 = 0  $ *endif
+*if, arg2, eq, 0, then $ arg2 = 45 $ *endif
+*if, arg3, eq, 0, then $ arg3 = 17 $ *endif
+*if, arg4, eq, 0, then $ arg4 = 1  $ *endif
+
+! running parameters
+angle_min = arg1      !deg
+angle_max = arg2      !deg
+max_iter  = arg3      !-
+chamfer   = arg4      !-
+
 ! ship load
-svcg = 6.5 		!m
-mt =  14666.0 		!t
-vt =  mt/1.025 		!m3
-vt_error = 0.0005	! error margin for iterative solver
+svcg = 16.6         !m
+mt =  11718.0        !t
+vt =  mt/1.025      !m3
+vt_error = 0.0005   ! error margin for iterative solver
 
 ! ship dimensions
-h = 7.6				!m
-b = 30.48			!m
-l = 91.85			!m
+h =  7.60           !m
+b = 30.48           !m
+l = 91.85           !m
 
 ! fwd and aft chamfers
-FWD_b = 8.335		!m
-FWD_a = 5.071		!m
-AFT_b = 9.500		!m
-AFT_a = 4.620		!m
+FWD_b = 8.335       !m
+FWD_a = 5.071       !m
+AFT_b = 9.500       !m
+AFT_a = 4.620       !m
 
-max_iter = 17		!-
-*dim, gm, table,60,4!-
-
-gmmax = 0
-gm0 = 0
+*dim, GZ, table,angle_max,4!-
+gzmax = 0
+gz0 = 0
 anglemax = 0
+gza1 = -1
+/out, is2008,out
+*VWRITE, 'draft', 'BTCG', 'GTCG'
+(3A)
+/out
 
 
-*do,angle,1,60,1
+*do,angle,angle_min,angle_max,.1
   
   upper_bound = +tan(angle)*b/2+h
   lower_bound = -tan(angle)*b/2
@@ -42,59 +57,64 @@ anglemax = 0
   d2=0
   d=vt/b/l
   *DO,i,1,max_iter
-    ! ship, water, you know
-	CSYS,0 $ WPCSYS
-    BLOCK, -b/2,b/2,-l/2,l/2,-d,h-d
+    vdele,all,,,1
 
-	! fwd chamfer
-	alpha = atan(FWD_a/FWD_b)
-	beta = sin(alpha)*l/2
-	WPROTA,,alpha
-	WPOFFS,,,-d+FWD_a-beta,0,1,1
-	CSYS,4
-	RECTNG,-2*b,2*b,-2*l,2*l
-	CSYS,0 $ WPCSYS
-	VSBA,1,7
-	NUMCMP,all
-	
-	! aft chamfer
-	alpha = atan(AFT_a/AFT_b)
-	beta = sin(alpha)*l/2
-	WPROTA,,-alpha
-	WPOFFS,,,-d+AFT_a-beta,0,1,1
-	CSYS,4
-	RECTNG,-2*b,2*b,-2*l,2*l
-	CSYS,0 $ WPCSYS
-	VSBA,2,12
-	NUMCMP,all
-	vdele,1,2,,1
-	NUMCMP,all
-	
-	! water surface
+    ! ship, water, you know
+    CSYS,0 $ WPCSYS
+    BLOCK, -b/2,b/2,-l/2,l/2,-d,h-d
+    
+    *if, chamfer, eq, 1, then
+      ! fwd chamfer
+      alpha = atan(FWD_a/FWD_b)
+      beta = sin(alpha)*l/2
+      WPROTA,,alpha
+      WPOFFS,,,-d+FWD_a-beta,0,1,1
+      CSYS,4
+      RECTNG,-2*b,2*b,-2*l,2*l
+      CSYS,0 $ WPCSYS
+      VSBA,1,7
+      NUMCMP,all
+      
+      ! aft chamfer
+      alpha = atan(AFT_a/AFT_b)
+      beta = sin(alpha)*l/2
+      WPROTA,,-alpha
+      WPOFFS,,,-d+AFT_a-beta,0,1,1
+      CSYS,4
+      RECTNG,-2*b,2*b,-2*l,2*l
+      CSYS,0 $ WPCSYS
+      VSBA,2,12
+      NUMCMP,all
+      vdele,1,2,,1
+      NUMCMP,all
+    *endif
+    
+    ! water surface
     RECTNG,-2*b,2*b,-2*l,2*l, 
     WPROTA,,,angle  
     VTRAN,4,1, , , ,1,1  
     CSYS,0 $ WPCSYS
-    VSBA, 1, 9
-	NUMCMP,all
+    *if, chamfer, eq, 1, then $ VSBA, 1, 9 $ *else $ VSBA, 1, 7
+    *endif ! soooougly....
+    NUMCMP,all
     
     ! get underwater volume
     vsel,,,,1
     VSUM
-	*get, vn1z, VOLU, 0, cent, Z
-    *get, vn1x, VOLU,0,CENT,X
-	*GET, vn1v,VOLU,0,VOLU
+    *get, vn1z, VOLU, 0, cent, Z
+    *get, vn1x, VOLU, 0, CENT, X
+    *GET, vn1v, VOLU, 0, VOLU
     vsel,,,,2
     VSUM
-	*get, vn2z, VOLU, 0, CENT, Z
-    *get, vn2x, VOLU,0,CENT,X
-	*GET, vn2v,VOLU,0,VOLU
+    *get, vn2z, VOLU, 0, CENT, Z
+    *get, vn2x, VOLU, 0, CENT, X
+    *GET, vn2v, VOLU, 0, VOLU
     *if,vn1z,lt,vn2z,then
       tcg = vn1x
-	  v2p = vn1v
+      v2p = vn1v
     *else
       tcg = vn2x
-	  v2p = vn2v
+      v2p = vn2v
     *endif
     allsel
     
@@ -102,16 +122,14 @@ anglemax = 0
     d1 = d2 $ d2 = d
     v1 = v2 $ v2 = v2p
     *if,abs(v2/vt-1),lt,vt_error,then
-	  ! /SHOW, PNG, png
-      ! /VIEW,  1,  0.457903065900    , -0.878383574628    ,  0.136992985452
-	  ! /auto,1
-	  ! vplot
-	  ! /SHOW, CLOSE
-	  vdele,all,,,1
-	  *exit
-	*endif
-    vdele,all,,,1
-    d = (vt-v2)/((v2-v1)/(d2-d1))+d2 ! iterator
+      ! /SHOW, PNG, png
+      ! /VIEW,  1,,-1
+      ! /auto,1
+      ! vplot
+      ! /SHOW, CLOSE
+      *exit
+    *endif
+    d = (vt-v2)/((v2-v1)/(d2-d1))+d2 ! iterator, so clean
     
     ! in case things get out of hand somehow
     *if, d, lt, lower_bound,then
@@ -121,40 +139,58 @@ anglemax = 0
     *endif
   *ENDDO
   
-  gma = tcg-((svcg-d)*sin(angle))
-  *if, gma, gt, gma1, then
-    sgm = sgm + 3.141592654/180*(angle-angle1)*(gma+gma1)/2
-  *elseif, gmmax, eq, 0
-    gmmax = nint(gma1+0.5)
-	gmmaxangle = angle1
-  *elseif, gma, lt, 0, and, anglemax, eq, 0
+  gza = tcg-((svcg-d)*sin(angle))
+  *if, gza, gt, gza1, then
+    sgz = sgz + 3.141592654/180*(angle-angle1)*(gza+gza1)/2
+  *elseif, gzmax, eq, 0
+    gzmax = gza1
+    gzmaxangle = angle1
+  *elseif, gza, lt, 0, and, anglemax, eq, 0
     anglemax = nint(angle/5+2.5)*5
   *endif
-  *if, gm0, eq, 0, then
-    gm0 = gma
+  *if, gz0, eq, 0, and, angle, ne, 0,then
+    gz0 = gza
+    gm0 = gza/sin(angle)
   *endif
-  GM(angle,1) = angle
-  GM(angle,2) = gma
-  GM(angle,3) = angle*gm0
-  GM(angle,4) = d
-  gma1 = gma
+  GZ(angle,1) = angle
+  GZ(angle,2) = gza
+  GZ(angle,3) = angle*gz0
+  *get, GZ(angle,4), KP, 0, MNLOC, Z
+  ! GZ(angle,4) = d
+  gza1 = gza
   angle1 = angle
+  
+  /out, is2008, out,,append
+  *vwrite, d, tcg, ((svcg-d)*sin(angle))
+(3F8.3)
+  /out
+
   
 *enddo
 
 /GTHK,CURVE,1
 /XRANGE, 0, anglemax
-/YRANGE, 0, gmmax
+/YRANGE, 0, nint(gzmax+0.5)
 /AXLAB, X, angle [deg]
-/AXLAB, Y, GM [m]
+/AXLAB, Y, GZ [m]
 /SHOW, PNG, png
-*VPLOT,GM(1,1),GM(1,2),3
+*VPLOT,GZ(1,1),GZ(1,2),3
 /show, close
+
 /out, is2008, out,,append
-*vwrite, mt, svcg, gmmaxangle, sgm
-(F8.0, 3F8.3)
-*status, GM
+*vwrite, 'displace','KG','GM0','max GZ','sum GZ','angle GZ'
+(6A8)
+*vwrite,'[t]','[m]','[m]','[m]','[mrad]','[deg]'
+(6A8)
+*vwrite, mt, svcg, gm0, gzmax, sgz, gzmaxangle
+(F8.0, 5F8.3)
 /out
+
+/VIEW,  1,0,-1,0
+/ANGLE, 1
+/AUTO, 1
+/TITLE, angle:%angle%, draft: %d%, iter: %i%
+vplot
 
 
 ! ffmpeg -framerate 5 -i file%03d.png -c:v libx264 -r 30 out.mp4

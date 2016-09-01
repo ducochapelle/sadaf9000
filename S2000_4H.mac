@@ -42,8 +42,9 @@ SWLJ  = arg5 !Initial SWL for Jib [t]
 CGM   = arg6 !required GM [m]
 CIMO  = arg7 !static stability criterium [mrad]
 ITER  = arg8 !switch to start iteration
-stri  = arg9 !lengthen the striking frame 
+stri  = arg9 !lengthen the striking frame [m]
 conf  = ar10 !is model file
+envi  = ar11 !environmental conditions
 
 C************************************************************************************************
 C*** Constant input *****************************************************************************
@@ -58,15 +59,32 @@ fold_off = 100                                 !deg folding frame offset from Ji
 g = 10 !m/s2
 
 C*** Loading
-heel = 3   !deg
-trim = 2   !deg
-side = 3   !deg
-offl = 2   !deg
-Fd = 1.0  !duty factor
-Fh = 1.1  !hoist factor
-alphax = 0     !rad/s2
-alphay = 0     !rad/s2
-az = 0   !m/s2 at jib tip
+*if, envi, eq, 'harbour',then
+	heel = 3   !deg
+	trim = 2   !deg
+	side = 3   !deg
+	offl = 2   !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.1  !hoist factor
+	alphax = 0     !rad/s2
+	alphay = 0     !rad/s2
+	az = 0   !m/s2 at jib tip
+*elseif, envi, eq, 'shelter', then
+	heel = 3.5 !deg
+	trim = 2   !deg
+	side = 4.5 !deg
+	offl = 2.5 !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.05 !hoist factor
+	alphax = 0.018     !rad/s2
+	alphay = 0.015     !rad/s2
+	az = 1.7   !m/s2 at jib tip
+*else
+	C*** invalid envi
+	*RETURN
+*endif
+
+
 
 C*** Reeving
 nfA = 10       !number of falls per A-frame lower block
@@ -642,15 +660,15 @@ C*******************************************************************************
 *if,jj,eq,1,then
   *if,beta,lt,10,then
     *if,alpha,lt,10,then
-      /out,results.0%alpha%.0%beta%,out
+      /out,results.%envi%.0%alpha%.0%beta%,out
     *else
-      /out,results.%alpha%.0%beta%,out
+      /out,results.%envi%.%alpha%.0%beta%,out
     *endif
   *else
     *if,alpha,lt,10,then
-      /out,results.0%alpha%.%beta%,out
+      /out,results.%envi%.0%alpha%.%beta%,out
     *else
-      /out,results.%alpha%.%beta%,out
+      /out,results.%envi%.%alpha%.%beta%,out
     *endif
   *endif
 *else

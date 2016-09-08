@@ -161,8 +161,8 @@ gza1 = -1
   angle1 = angle
   
   /out, is2008, out,,append
-  *vwrite, d, tcg, ((svcg-d)*sin(angle))
-(3F8.3)
+  *vwrite, angle, d, tcg, ((svcg-d)*sin(angle))
+(4F8.3)
   /out
 
   

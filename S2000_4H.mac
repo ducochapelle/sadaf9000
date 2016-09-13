@@ -17,6 +17,8 @@ fini
   RESUME, strikingframe,db
 *elseif,ar10,eq,4,then
   RESUME, SADAF2000,db3 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\ 
+*elseif,ar10,eq,5,then
+  RESUME, superwinch,db
 *endif
 /nopr
 /nerr,-1
@@ -41,10 +43,10 @@ beta  = arg4 !Jib offset [deg]
 SWLJ  = arg5 !Initial SWL for Jib [t]
 CGM   = arg6 !required GM [m]
 CIMO  = arg7 !static stability criterium [mrad]
-ITER  = arg8 !switch to start iteration
+ITER  = arg8 !switch to start iteration [0-1]
 stri  = arg9 !lengthen the striking frame [m]
-conf  = ar10 !is model file
-envi  = ar11 !environmental conditions
+conf  = ar10 !is model file [1-5]
+envi  = ar11 !environmental conditions ['harbour, 'shelter']
 
 C************************************************************************************************
 C*** Constant input *****************************************************************************
@@ -139,8 +141,6 @@ wpoffs,,,1000            !folding frame pivot
 wprota,,,-fold_off       !folding frame offset
  cswpla,41
 
-
-
 C*** Define local cartesian coordinate systems for base model 4
 csys $ wpcsys            !reset working plane
 wpoffs,-3000,,4000       !A-frame pivot
@@ -156,7 +156,6 @@ csys $ wpcsys
  
 csys $ wpcsys
 csys $ /psymb,csys
-
 
 C*** Modify base model
 
@@ -196,6 +195,12 @@ nsel,,loc,y,0,9000 $ cpintf,uy,140
   real,71 
   e,n1,56
   e,n2,27
+*elseif,conf,eq,5,then
+  mat, 7
+  type, 8
+  real, 71
+  e,142,171
+  e,136,172
 *endif
 
 allsel $ /pnum,mat,1 $ /num,1 $ /eshape,0 $ /view,,,-1 $ /zoom,,off
@@ -414,20 +419,6 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
     eplo
   *endif
 
-  lswrite,lc
-
-  lsclear,all
-*enddo
-
-! *EXIT
-! *ENDDO
-! /eof
-
-C*** Weight and CoG
-fini
-/solu
-lsread,1
-irlf,-1
 psolve,elform
 psolve,elprep
 irlf
@@ -458,6 +449,16 @@ C*******************************************************************************
 UP=0 $ UA=0 $ UJ=0 $ US=0 $ UF=0 $ STEPFAC = 1.0
 
 
+  lswrite,lc
+
+  lsclear,all
+*enddo
+
+C*** Weight and CoG
+fini
+/solu
+lsread,1
+irlf,-1
 *do,lc,1,4
 
 set,lc

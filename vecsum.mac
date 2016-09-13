@@ -1,0 +1,9 @@
+s = 0
+*do,i,1,19
+  *if,i,lt,10,then
+    s = s + (ARG%i%)**2
+  *else
+    s = s + (AR%i%)**2
+  *endif
+*enddo
+a = sqrt(s)

@@ -1,0 +1,105 @@
+finish
+/clear, nostart
+*afun, deg
+/solu
+/pbc,rot,,0
+/pbc,ce,,0
+
+!        6
+!      2 3
+!     /  4
+!    /   |
+!   /    |
+!  1     5
+!
+
+/prep7
+
+MPTEMP,1,0 ! steel in [mm;ton;N]
+MPDATA,DENS,1,,7860e-12 
+MPDATA,EX,1,,210000 
+MPDATA,PRXY,1,,0.3
+
+ET,1,LINK180
+R,1,100**2,0   !( elem, area, mass/length)
+ET,2,BEAM188
+SECTYPE,   1, BEAM, CTUBE, , 0   
+SECOFFSET, CENT 
+SECDATA,160/4,200/4,12  ! Ri Ro n
+
+
+a1 = arg1
+l1 = 2000
+a2 = arg2
+l2 = 1000
+offset = 100
+
+n,2,offset*cos(-a1+180),offset*sin(-a1+180)
+n,1,nx(2)+sin(a1+180)*l1, ny(2)+cos(a1+180)*l1
+n,3,0,0
+n,4,offset*cos(a2),offset*sin(-a2+180)
+n,5,nx(4)+sin(a2)*l2, ny(4)+cos(a2+180)*l2
+n,6,0,-offset,0
+
+TYPE,1
+E,1,2
+E,5,4
+TYPE,2
+E,3,6
+
+/solu
+
+d,1,ux,0,,,,uy,uz
+d,2,uz,0
+
+d,5,ux,0,,,,uy,uz
+d,4,uz,0
+
+d,3,uz,0
+d,6,uz,0
+
+d,all,rotx,0,,,,roty
+
+x = nx(2)-nx(1)
+y = ny(2)-ny(1)
+s = sqrt(x*x+y*y)
+a = x/s
+b = y/s
+
+x = nx(4)-nx(5)
+y = ny(4)-ny(5)
+s = sqrt(x*x+y*y)
+c = x/s
+d = y/s
+
+C*** FUCKING ACE!
+ce,next,0, 3,rotz,-1
+ce,high,0, 2,ux,-a, 2,uy,-b
+ce,high,0, 3,ux, a, 3,uy, b
+
+ce,next,0, 2,ux, b, 2,uy,-a
+ce,high,0, 3,ux,-b, 3,uy, a
+
+ce,next,0, 3,rotz,1
+ce,high,0, 4,ux,-c, 4,uy,-d
+ce,high,0, 3,ux, c, 3,uy, d
+
+ce,next,0, 4,ux, d,  4,uy,-c
+ce,high,0, 3,ux,-d,  4,uy, c
+
+d,3,ux,0
+f,3, fy, 1000
+
+
+solve
+/post1
+/pbc,all,,0
+/pbc,nfor,,2
+/pbc,nmom,,2
+plns,s,eqv
+gplo
+
+
+
+/eof
+

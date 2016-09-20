@@ -1,3 +1,4 @@
+/nopr
 s = 0
 *do,i,1,19
   *if,i,lt,10,then
@@ -6,4 +7,5 @@ s = 0
     s = s + (AR%i%)**2
   *endif
 *enddo
+/gopr
 a = sqrt(s)

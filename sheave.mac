@@ -27,19 +27,13 @@ SECTYPE,   1, BEAM, CTUBE, , 0
 SECOFFSET, CENT 
 SECDATA,160/4,200/4,12  ! Ri Ro n
 
+n,1,-50,-1000,-500
+n,5,-160,-2000,-1600
+n,3,0,0,0
+n,2,nx(1)/5,ny(1)/5,nz(1)/5
+n,4,nx(5)/5,ny(5)/5,nz(5)/5
+n,6,0,-100,0
 
-a1 = arg1
-l1 = 2000
-a2 = arg2
-l2 = 1000
-offset = 100
-
-n,2,offset*cos(-a1+180),offset*sin(-a1+180)
-n,1,nx(2)+sin(a1+180)*l1, ny(2)+cos(a1+180)*l1
-n,3,0,0
-n,4,offset*cos(a2),offset*sin(-a2+180)
-n,5,nx(4)+sin(a2)*l2, ny(4)+cos(a2+180)*l2
-n,6,0,-offset,0
 
 TYPE,1
 E,1,2
@@ -50,46 +44,85 @@ E,3,6
 /solu
 
 d,1,ux,0,,,,uy,uz
-d,2,uz,0
-
 d,5,ux,0,,,,uy,uz
-d,4,uz,0
-
-d,3,uz,0
+d,3,ux,0,,,,uz
 d,6,uz,0
 
-d,all,rotx,0,,,,roty
+f,3, fy, 1000
+f,3, fz,  800
 
+! a unit vector in the sheave plane
 x = nx(2)-nx(1)
 y = ny(2)-ny(1)
-s = sqrt(x*x+y*y)
+z = nz(2)-nz(1)
+s = sqrt(x*x+y*y+z*z)
 a = x/s
 b = y/s
+c = z/s
 
+! another unit vector in the sheave plane
 x = nx(4)-nx(5)
 y = ny(4)-ny(5)
-s = sqrt(x*x+y*y)
-c = x/s
-d = y/s
+z = nz(4)-nz(5)
+s = sqrt(x*x+y*y+z*z)
+d = x/s
+e = y/s
+f = z/s
 
-C*** FUCKING ACE!
-ce,next,0, 3,rotz,-1
-ce,high,0, 2,ux,-a, 2,uy,-b
-ce,high,0, 3,ux, a, 3,uy, b
+! unit vector perpendicular to sheave plane
+x = b*f-c*e
+y = c*d-a*f
+z = a*e-b*d
+s = sqrt(x*x+y*y+z*z) ! make it unit
+g = x/s
+h = y/s
+i = z/s
 
-ce,next,0, 2,ux, b, 2,uy,-a
-ce,high,0, 3,ux,-b, 3,uy, a
+! WIRE 1
+! moving with the winch..
+! ..in plane in line 
+ce,    1,0,  3,rotx,-g,3,roty,-h,3,rotz,-i
+ce,high,0,  2,ux,-a,  2,uy,-b,  2,uz,-c
+ce,high,0,  3,ux, a,  3,uy, b,  3,uz, c                    
+! ..out of plane
+ce,    2,0,  2,ux, g,  2,uy, h,  2,uz, i
+ce,high,0,  3,ux,-g,  3,uy,-h,  3,uz,-i
+! ..in plane, perpendicular to line
+a1 = b*i-c*h
+b1 = c*g-a*i
+c1 = a*h-b*g
+ce,    3,0,  2,ux, a1,  2,uy, b1,  2,uz, c1
+ce,high,0,  3,ux,-a1,  3,uy,-b1,  3,uz,-c1
+! don't move with the winch..
+! ..in two rotational directions.
+ce,    4,0,  2,rotx,a,  2,roty,b,  2,rotz,c
+ce,    5,0,  2,rotx,a1, 2,roty,b1, 2,rotz,c1
 
-ce,next,0, 3,rotz,1
-ce,high,0, 4,ux,-c, 4,uy,-d
-ce,high,0, 3,ux, c, 3,uy, d
+! WIRE 2
+! moving with the winch..
+! ..in plane in line
+ce,next,0,  3,rotx,g, 3,roty,h, 3,rotz,i
+ce,high,0,  4,ux,-d,  4,uy,-e,  4,uz,-f
+ce,high,0,  3,ux, d,  3,uy, e,  3,uz, f
+! ..out of plane
+ce,next,0,  4,ux, g,  4,uy, h,  4,uz, i
+ce,high,0,  3,ux,-g,  3,uy,-h,  3,uz,-i
+! ..in plane, perpendicular to line
+d1 = e*i-f*h
+e1 = f*g-d*i
+f1 = d*h-e*g                 
+ce,next,0,  4,ux, d1,  4,uy, e1,  4,uz, f1
+ce,high,0,  3,ux,-d1,  3,uy,-e1,  3,uz,-f1
+! don't move with the winch..
+! ..in two rotational directions.
+ce,next,0,  4,rotx,d,  4,roty,e,  4,rotz,f
+ce,next,0,  4,rotx,d1, 4,roty,e1, 4,rotz,f1
 
-ce,next,0, 4,ux, d,  4,uy,-c
-ce,high,0, 3,ux,-d,  4,uy, c
-
-d,3,ux,0
-f,3, fy, 1000
-
+! SHEAVE
+! don't move with the winch..
+! ..in two rotational directions.
+! ce,next,0,  3,rotx,d,  3,roty,e,  3,rotz,f
+ce,next,0,  3,rotx,d1, 3,roty,e1, 3,rotz,f1
 
 solve
 /post1
@@ -98,8 +131,4 @@ solve
 /pbc,nmom,,2
 plns,s,eqv
 gplo
-
-
-
-/eof
 

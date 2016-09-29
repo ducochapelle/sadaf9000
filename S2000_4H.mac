@@ -419,6 +419,16 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
     eplo
   *endif
 
+  lswrite,lc
+
+  lsclear,all
+*enddo
+
+C*** Weight and CoG
+fini
+/solu
+lsread,1
+irlf,-1
 psolve,elform
 psolve,elprep
 irlf
@@ -449,16 +459,7 @@ C*******************************************************************************
 UP=0 $ UA=0 $ UJ=0 $ US=0 $ UF=0 $ STEPFAC = 1.0
 
 
-  lswrite,lc
 
-  lsclear,all
-*enddo
-
-C*** Weight and CoG
-fini
-/solu
-lsread,1
-irlf,-1
 *do,lc,1,4
 
 set,lc

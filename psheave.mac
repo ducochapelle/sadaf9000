@@ -1,0 +1,122 @@
+node1 = arg1
+node5 = arg2 
+node3 = arg3
+wire = arg4
+
+!        6
+!      2 3
+!     /  4
+!    /   |
+!   /    |
+!  1     5
+!
+
+! let's put a node on the sheave location
+! that can freely rotate but is translate
+! tied to the sheave location. The tying 
+! happens with CPs, giving it the DOFs is
+! done by putting a very light mass on it.
+! In the end, this node is now the sheave.
+n,next,nx(node3),ny(node3),nz(node3)
+*get,node3a,node,0,num,max
+ce,next,0.0,node3,ux,-1,node3a,ux,1
+ce,next,0.0,node3,uy,-1,node3a,uy,1
+ce,next,0.0,node3,uz,-1,node3a,uz,1
+*get,e,etype,0,num,max
+*get,r,rcon,0,num,max
+et,   e+1,mass21
+r,    r+1,1e-29,1e-29,1e-29,
+type, e+1
+real, r+1
+e,node3a
+node3 = node3a
+
+! Now build the nodes that we are going
+! to tie to the sheave node.
+n,next,nx(node3)+(nx(node1)-nx(node3))/5, ny(node3)+(ny(node1)-ny(node3))/5, nz(node3)+(nz(node1)-nz(node3))/5
+n,next,nx(node3)+(nx(node5)-nx(node3))/5, ny(node3)+(ny(node5)-ny(node3))/5, nz(node3)+(nz(node5)-nz(node3))/5
+*get,node4,NODE,0,NUM,MAX
+node2 = node4-1
+
+*get,elemtype, ELEM, wire, attr, type
+*get,elemreal, ELEM, wire, attr, real
+*get,elemmat,  ELEM, wire, attr, mat
+type, elemtype
+real, elemreal
+mat,  elemmat
+E,node1,node2
+*get,rtrn,elem,0,num, max
+E,node5,node4
+
+! a unit vector in the sheave plane
+x = nx(node2)-nx(node1)
+y = ny(node2)-ny(node1)
+z = nz(node2)-nz(node1)
+s = sqrt(x*x+y*y+z*z)
+a = x/s
+b = y/s
+c = z/s
+
+! another unit vector in the sheave plane
+x = nx(node4)-nx(node5)
+y = ny(node4)-ny(node5)
+z = nz(node4)-nz(node5)
+s = sqrt(x*x+y*y+z*z)
+d = x/s
+e = y/s
+f = z/s
+
+! unit vector perpendicular to sheave plane
+x = b*f-c*e
+y = c*d-a*f
+z = a*e-b*d
+s = sqrt(x*x+y*y+z*z)
+g = x/s
+h = y/s
+i = z/s
+
+! WIRE 1
+! moving with the winch..
+! ..in plane in line 
+ce,next,0,  node3,rotx,-g,node3,roty,-h,node3,rotz,-i
+ce,high,0,  node2,ux,-a,  node2,uy,-b,  node2,uz,-c
+ce,high,0,  node3,ux, a,  node3,uy, b,  node3,uz, c                    
+! ..out of plane
+ce,next,0,  node2,ux, g,  node2,uy, h,  node2,uz, i
+ce,high,0,  node3,ux,-g,  node3,uy,-h,  node3,uz,-i
+! ..in plane, perpendicular to line
+a1 = b*i-c*h
+b1 = c*g-a*i
+c1 = a*h-b*g
+ce,next,0,  node2,ux, a1,  node2,uy, b1,  node2,uz, c1
+ce,high,0,  node3,ux,-a1,  node3,uy,-b1,  node3,uz,-c1
+! don't move with the winch..
+! ..in two rotational directions.
+ce,next,0,  node2,rotx,a,  node2,roty,b,  node2,rotz,c
+ce,next,0,  node2,rotx,a1, node2,roty,b1, node2,rotz,c1
+
+! WIRE node2
+! moving with the winch..
+! ..in plane in line
+ce,next,0,  node3,rotx,g, node3,roty,h, node3,rotz,i
+ce,high,0,  node4,ux,-d,  node4,uy,-e,  node4,uz,-f
+ce,high,0,  node3,ux, d,  node3,uy, e,  node3,uz, f
+! ..out of plane
+ce,next,0,  node4,ux, g,  node4,uy, h,  node4,uz, i
+ce,high,0,  node3,ux,-g,  node3,uy,-h,  node3,uz,-i
+! ..in plane, perpendicular to line
+d1 = e*i-f*h
+e1 = f*g-d*i
+f1 = d*h-e*g                 
+ce,next,0,  node4,ux, d1,  node4,uy, e1,  node4,uz, f1
+ce,high,0,  node3,ux,-d1,  node3,uy,-e1,  node3,uz,-f1
+! don't move with the winch..
+! ..in two rotational directions.
+ce,next,0,  node4,rotx,d,  node4,roty,e,  node4,rotz,f
+ce,next,0,  node4,rotx,d1, node4,roty,e1, node4,rotz,f1
+
+! SHEAVE
+! don't move with the winch..
+! ..in two rotational directions.
+ce,next,0,  node3,rotx,d,  node3,roty,e,  node3,rotz,f
+ce,next,0,  node3,rotx,d1, node3,roty,e1, node3,rotz,f1

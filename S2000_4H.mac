@@ -17,7 +17,7 @@ fini
   RESUME, strikingframe,db
 *elseif,ar10,eq,4,then
   RESUME, SADAF2000,db3 !,..\PROJECTS\SADAF\SALMAN~1\SADAF2~1\ 
-*elseif,ar10,eq,5,then
+*elseif,ar10,eq,5,then ! Doesn't work yet. Something with CE blablabla.
   RESUME, superwinch,db
 *endif
 /nopr
@@ -127,7 +127,7 @@ C*******************************************************************************
 C*** Build model ********************************************************************************
 C************************************************************************************************
 
-csdel,all
+csdele,all
 
 C*** Define local cartesian coordinate systems at requested position and angles
 csys $ wpcsys            !reset working plane
@@ -152,7 +152,7 @@ wprota,,,30              !Jib offset
 csys $ wpcsys			 
 ! wpoffs,-3179.4,,5489.2   !Striking frame pivot
 ! wprota,-90               !Striking frame offset
- ! cswpla,33
+! cswpla,33
  
 csys $ wpcsys
 csys $ /psymb,csys
@@ -173,7 +173,10 @@ cmsel,,jib $ cmsel,a,folding
 *endif
 allsel $ cpintf,ux,140 $ cpintf,uz,140
 nsel,,loc,y,0,9000 $ cpintf,uy,140
+allsel
 
+ntackj1 = 97 ! just some elements
+ntackj2 = 96 ! that'll be used later
 *if, conf, eq, 3, then
   csys,4
   allsel
@@ -182,7 +185,6 @@ nsel,,loc,y,0,9000 $ cpintf,uy,140
   nwpave, 195
   nmodif,195,0,-stri
 *elseif,conf,eq,4,then
-  WPSYS
   csys,4  
   nwpave,73,180
   n,next,0,0,0
@@ -196,19 +198,18 @@ nsel,,loc,y,0,9000 $ cpintf,uy,140
   e,n1,56
   e,n2,27
 *elseif,conf,eq,5,then
-  mat, 7
-  type, 8
-  real, 71
-  e,142,171
-  e,136,172
+  psheave, 180, 142, 171, ntackj2
+  edele, ntackj2
+  ntackj2 = rtrn
+  psheave, 179, 136, 172, ntackj1
+  edele, ntackj1
+  ntackj1 = rtrn
 *endif
 
 allsel $ /pnum,mat,1 $ /num,1 $ /eshape,0 $ /view,,,-1 $ /zoom,,off
 *if,ITER,ne,1,then
   eplo
 *endif
-!/view,,-1,-1,1
-!/rep
 
 C*** Find nodes
 
@@ -459,7 +460,6 @@ C*******************************************************************************
 UP=0 $ UA=0 $ UJ=0 $ US=0 $ UF=0 $ STEPFAC = 1.0
 
 
-
 *do,lc,1,4
 
 set,lc
@@ -468,7 +468,7 @@ C*** Forces in topping, folding tackles and stays
 FtackA1 = 0 $ FtackA2 = 0 $ FtackA=(FtackA1+FtackA2)/1000 $ Rwire(lc,3)=FtackA
 *get,FstayA1,elem,95,smisc,1 $ *get,FstayA2,elem,94,smisc,1 $ FstayA=(FstayA1+FstayA2)/1000 $ Rwire(lc,4)=FstayA
 *if,jj,eq,1,then
-  *get,FtackJ1,elem, 97,smisc,1 $ *get,FtackJ2,elem, 96,smisc,1 $ FtackJ=(FtackJ1+FtackJ2)/1000 $ Rwire(lc,5)=FtackJ
+  *get,FtackJ1,elem, ntackj1,smisc,1 $ *get,FtackJ2,elem, ntackj2,smisc,1 $ FtackJ=(FtackJ1+FtackJ2)/1000 $ Rwire(lc,5)=FtackJ
   *get,FstayJ1,elem, 99,smisc,1 $ *get,FstayJ2,elem, 98,smisc,1 $ FstayJ=(FstayJ1+FstayJ2)/1000 $ Rwire(lc,6)=FstayJ
   *if,conf,eq,4,then
     *get,FauxiJ1,elem,111,smisc,1 $ *get,FauxiJ2,elem,112,smisc,1 $ FauxiJ=(FauxiJ1+FauxiJ2)/1000 $ Rwire(lc,9)=FauxiJ

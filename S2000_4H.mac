@@ -7,6 +7,26 @@ C*** Model 4 with 500 mm eccentricity in the jib supports                       
 C************************************************************************************************
 C************************************************************************************************
 
+! Model units
+! ===========
+
+! BASE UNITS
+! ----------
+! length: mm
+! mass: kg
+! time: sqrt(1000)*s
+!
+! DERIVED UNITS
+! -------------
+! force: kg*mm/sqrt(1000)^2/s^2 = kg*m/s^2 = N
+! pressure: N/mm = MPa
+! linear acceleration: mm/(sqrt(1000)*s)^2 = m/s^2
+! rotational acceleration: rad/(sqrt(1000)*s)^2 = rad/1000/s^2
+! density: kg/mm^3
+!
+! Nice.
+
+
 fini
 /clear, nostart
 *if,ar10,eq,1,then
@@ -46,7 +66,8 @@ CIMO  = arg7 !static stability criterium [mrad]
 ITER  = arg8 !switch to start iteration [0-1]
 stri  = arg9 !lengthen the striking frame [m]
 conf  = ar10 !is model file [1-5]
-envi  = ar11 !environmental conditions ['harbour, 'shelter']
+envi  = ar11 !environmental conditions ['harbour', 'shelter','hs125','hs100','hs075','hs050']
+temp  = ar12 !fiddle argument
 
 C************************************************************************************************
 C*** Constant input *****************************************************************************
@@ -70,6 +91,8 @@ C*** Loading
 	Fh = 1.1  !hoist factor
 	alphax = 0     !rad/s2
 	alphay = 0     !rad/s2
+    ax = 0
+    ay = 0
 	az = 0   !m/s2 at jib tip
 *elseif, envi, eq, 'shelter', then
 	heel = 3.5 !deg
@@ -80,7 +103,67 @@ C*** Loading
 	Fh = 1.05 !hoist factor
 	alphax = 0.018     !rad/s2
 	alphay = 0.015     !rad/s2
+    ax = 0
+    ay = 0
 	az = 1.7   !m/s2 at jib tip
+*elseif, envi, eq, 'hs050', then
+	heel = 3.5 !deg
+	trim = 2   !deg
+	side = 4.5 !deg
+	offl = 2.5 !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.05 !hoist factor
+	alphax = 0.025   !rad/s2
+	alphay = 0.012   !rad/s2
+    ax = 0.189   !m/s2 at csys 0
+    ay = 0.213   !m/s2 at csys 0
+	az = 0.619   !m/s2 at csys 0
+*elseif, envi, eq, 'hs075', then
+	heel = 3.5 !deg
+	trim = 2   !deg
+	side = 4.5 !deg
+	offl = 2.5 !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.05 !hoist factor
+	alphax = 0.035   !rad/s2
+	alphay = 0.018   !rad/s2
+    ax = 0.282	!m/s2 at csys 0
+    ay = 0.316	!m/s2 at csys 0
+	az = 0.929	!m/s2 at csys 0
+*elseif, envi, eq, 'hs100', then
+	heel = 3.5 !deg
+	trim = 2   !deg
+	side = 4.5 !deg
+	offl = 2.5 !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.05 !hoist factor
+	alphax = 0.043  !rad/s2
+	alphay = 0.024  !rad/s2
+    ax = 0.386 !m/s2 at csys 0
+    ay = 0.416 !m/s2 at csys 0
+	az = 1.233 !m/s2 at csys 0
+*elseif, envi, eq, 'hs125', then
+	heel = 3.5 !deg
+	trim = 2   !deg
+	side = 4.5 !deg
+	offl = 2.5 !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.05 !hoist factor
+	alphax = 0.050   !rad/s2
+	alphay = 0.030   !rad/s2
+    ax = 0.471 !m/s2 at csys 0
+    ay = 0.512 !m/s2 at csys 0
+	az = 1.543 !m/s2 at csys 0
+*elseif, envi, eq, 'test', then
+	heel = 3.5 !deg
+	trim = 2   !deg
+	side = 4.5 !deg
+	offl = 2.5 !deg
+	Fd = 1.0  !duty factor
+	Fh = 1.05 !hoist factor
+	alphax = 0.018    !rad/s2
+	alphay = 0.015     !rad/s2
+	az = 0   !m/s2 at jib tip
 *else
 	C*** invalid envi
 	*RETURN
@@ -111,11 +194,11 @@ CPivot   = 35000 !kN A-frame pivot
 CAframe  = 58500 !kN Axial force in A-frame (Refer to Taklift 8)
 CJib     = 36000 !kN Axial force in Jib
 CFFPivot = 14300 !kN Folding frame pivot
-CSall    =   211 !MPa Allowable stress in A-frame main section
+CSall    = 195.7 ! 211 !MPa Allowable stress in A-frame main section
 
 C*** Barge including waterballast
 L = 85.0 !m
-B = 30.5 !m original width
+B = 30.0 !m original width
 calculate_vcb = 0
 D =  7.6 !m
 Barge = 9798 !t
@@ -321,22 +404,27 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
     C*** Define load case 1
     Fdc=1.0 $ FhcA=1.0 $ FhcJ=1.0
     offlc=-offl $ trimc=-trim $ alphayc=-alphay
+    axc=+ax ! works against alphay
   *elseif,lc,eq,2,then
     C*** Define load case 2
     Fdc=Fd $ FhcA=Fh+az/g $ FhcJ=Fh+az/g
     offlc=-offl $ trimc=-trim $ alphayc=-alphay
+    axc=+ax
   *elseif,lc,eq,3,then
     C*** Define load case 3
     Fdc=1.0 $ FhcA=1.0 $ FhcJ=1.0
     offlc=+offl $ trimc=+trim $ alphayc=+alphay
+    axc=-ax
   *elseif,lc,eq,4,then
     C*** Define load case 4
     Fdc=Fd $ FhcA=Fh+az/g $ FhcJ=Fh+az/g
     offlc=+offl $ trimc=+trim $ alphayc=+alphay
+    axc=-ax
   *endif
   sidec=side
   heelc=heel
   alphaxc=alphax
+  ayc = ay
 
   data(lc,1)=lc
   data(lc,2)=radiusA
@@ -358,11 +446,18 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
   *else
     d,node(-3000,-8200,4000),uy
   *endif
+  
+  
   C*** Self-weight and accelerations
-  axtot=-Fdc*((g+az)*sin(trimc)+alphayc*3.0)
-  aytot=-Fdc*((g+az)*sin(heelc)+alphaxc*3.0)
-  acel,axtot,aytot,Fdc*(g+az)
+  ! axtot=-Fdc*((g+az)*sin(trimc)+alphayc*3.0) ! stuff from JAN
+  ! aytot=-Fdc*((g+az)*sin(heelc)+alphaxc*3.0)
+  axtot=-Fdc*((g+az)*sin(trimc)+axc)
+  aytot=-Fdc*((g+az)*sin(heelc)+ayc)
+  aztot= Fdc*((g+az)*1         +0  )
+  acel,axtot,aytot,aztot
 
+  domega, Fdc*alphaxc/1000,-Fdc*alphayc/1000 
+  
   *if,conf,eq,4,then
     d,n1,ux,0,,n2,1,uy,uz
   *endif
@@ -505,6 +600,11 @@ C*** Axial force in A-frame
 NAframe=na1+na2 $ Rwire(lc,7)=NAframe
 
 C*** Stress in St 52-3N A-frame main section
+! *get,Sell,elem,43,nmisc,4 $ Sell1 = abs(Sell)
+! *get,Sell,elem,35,nmisc,4 $ Sell2 = abs(Sell)
+! *get,Sell,elem,45,nmisc,4 $ Sell3 = abs(Sell)
+! *get,Sell,elem,60,nmisc,4 $ Sell4 = abs(Sell)
+! Sell=max(Sell1,Sell2,Sell3,Sell4) $ RStress(lc,1)=Sell
 *get,Sell,elem,45,nmisc,4 $ Sell = abs(Sell) $ RStress(lc,1)=Sell
 
 *if,jj,eq,1,then

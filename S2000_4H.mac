@@ -113,11 +113,11 @@ C*** Loading
 	offl = 2.5 !deg
 	Fd = 1.0  !duty factor
 	Fh = 1.05 !hoist factor
-	alphax = 0.025   !rad/s2
-	alphay = 0.012   !rad/s2
-    ax = 0.189   !m/s2 at csys 0
-    ay = 0.213   !m/s2 at csys 0
-	az = 0.619   !m/s2 at csys 0
+	alphax = 0.0305   !rad/s2
+	alphay = 0.0111   !rad/s2
+    ax = -0.155   !m/s2 
+    ay = 0.000   !m/s2 
+	az = 0.128   !m/s2 
 *elseif, envi, eq, 'hs075', then
 	heel = 3.5 !deg
 	trim = 2   !deg
@@ -125,11 +125,11 @@ C*** Loading
 	offl = 2.5 !deg
 	Fd = 1.0  !duty factor
 	Fh = 1.05 !hoist factor
-	alphax = 0.035   !rad/s2
-	alphay = 0.018   !rad/s2
-    ax = 0.282	!m/s2 at csys 0
-    ay = 0.316	!m/s2 at csys 0
-	az = 0.929	!m/s2 at csys 0
+	alphax = 0.0421   !rad/s2
+	alphay = 0.0166   !rad/s2
+    ax = -0.233	!m/s2 
+    ay = 0.000	!m/s2 
+	az = 0.193	!m/s2 
 *elseif, envi, eq, 'hs100', then
 	heel = 3.5 !deg
 	trim = 2   !deg
@@ -137,11 +137,11 @@ C*** Loading
 	offl = 2.5 !deg
 	Fd = 1.0  !duty factor
 	Fh = 1.05 !hoist factor
-	alphax = 0.043  !rad/s2
-	alphay = 0.024  !rad/s2
-    ax = 0.386 !m/s2 at csys 0
-    ay = 0.416 !m/s2 at csys 0
-	az = 1.233 !m/s2 at csys 0
+	alphax = 0.0524  !rad/s2
+	alphay = 0.0222  !rad/s2
+    ax = -0.310 !m/s2 
+    ay = 0.000 !m/s2 
+	az = 0.256 !m/s2 
 *elseif, envi, eq, 'hs125', then
 	heel = 3.5 !deg
 	trim = 2   !deg
@@ -149,11 +149,11 @@ C*** Loading
 	offl = 2.5 !deg
 	Fd = 1.0  !duty factor
 	Fh = 1.05 !hoist factor
-	alphax = 0.050   !rad/s2
-	alphay = 0.030   !rad/s2
-    ax = 0.471 !m/s2 at csys 0
-    ay = 0.512 !m/s2 at csys 0
-	az = 1.543 !m/s2 at csys 0
+	alphax = 0.0616   !rad/s2
+	alphay = 0.0277   !rad/s2
+    ax = -0.386 !m/s2 at csys 0
+    ay = 0.000 !m/s2 at csys 0
+	az = 0.319 !m/s2 at csys 0
 *elseif, envi, eq, 'test', then
 	heel = 3.5 !deg
 	trim = 2   !deg
@@ -404,22 +404,22 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
     C*** Define load case 1
     Fdc=1.0 $ FhcA=1.0 $ FhcJ=1.0
     offlc=-offl $ trimc=-trim $ alphayc=-alphay
-    axc=+ax ! works against alphay
+    axc=-ax $ azc=-az
   *elseif,lc,eq,2,then
     C*** Define load case 2
     Fdc=Fd $ FhcA=Fh+az/g $ FhcJ=Fh+az/g
     offlc=-offl $ trimc=-trim $ alphayc=-alphay
-    axc=+ax
+    axc=-ax $ azc=-az
   *elseif,lc,eq,3,then
     C*** Define load case 3
     Fdc=1.0 $ FhcA=1.0 $ FhcJ=1.0
     offlc=+offl $ trimc=+trim $ alphayc=+alphay
-    axc=-ax
+    axc=+ax $ azc=+az
   *elseif,lc,eq,4,then
     C*** Define load case 4
     Fdc=Fd $ FhcA=Fh+az/g $ FhcJ=Fh+az/g
     offlc=+offl $ trimc=+trim $ alphayc=+alphay
-    axc=-ax
+    axc=+ax $ azc=+az
   *endif
   sidec=side
   heelc=heel
@@ -449,14 +449,19 @@ Cwire(4,1)=CTop_f   $ Cwire(4,2)=CFol_f
   
   
   C*** Self-weight and accelerations
-  ! axtot=-Fdc*((g+az)*sin(trimc)+alphayc*3.0) ! stuff from JAN
-  ! aytot=-Fdc*((g+az)*sin(heelc)+alphaxc*3.0)
-  axtot=-Fdc*((g+az)*sin(trimc)+axc)
-  aytot=-Fdc*((g+az)*sin(heelc)+ayc)
-  aztot= Fdc*((g+az)*1         +0  )
-  acel,axtot,aytot,aztot
-
-  domega, Fdc*alphaxc/1000,-Fdc*alphayc/1000 
+  *if, envi, eq, 'shelter', or, envi, eq, 'harbour', then
+    axtot=-Fdc*((g+az)*sin(trimc)+alphayc*3.0) ! stuff from JAN
+    aytot=-Fdc*((g+az)*sin(heelc)+alphaxc*3.0)
+    acel,axtot, aytot,Fdc*(g+az)
+    domega, Fdc*alphaxc/1000,-Fdc*alphayc/1000
+  *else
+    axtot=-Fdc*(g*sin(trimc)+axc)
+    aytot=-Fdc*(g*sin(heelc)+ayc)
+    aztot= Fdc*(g*1         +azc)
+    acel,axtot,aytot,aztot
+    cgloc,31523-78780,0,0    
+    dcgomg, Fdc*alphaxc/1000,-Fdc*alphayc/1000 
+  *endif
   
   *if,conf,eq,4,then
     d,n1,ux,0,,n2,1,uy,uz

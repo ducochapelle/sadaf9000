@@ -66,8 +66,8 @@ CIMO  = arg7 !static stability criterium [mrad]
 ITER  = arg8 !switch to start iteration [0-1]
 stri  = arg9 !lengthen the striking frame [m]
 conf  = ar10 !is model file [1-5]
-envi  = ar11 !environmental conditions ['harbour', 'shelter','hs125','hs100','hs075','hs050']
-temp  = ar12 !fiddle argument
+envi  = ar11 !environmental conditions ['harbour', 'shelter','hs125','hs100','hs075','hs050', 'custom']
+acas  = ar12 !load case argument
 
 C************************************************************************************************
 C*** Constant input *****************************************************************************
@@ -154,16 +154,19 @@ C*** Loading
     ax =        0.472 !m/s2 
     ay =        0.512 !m/s2 
 	az =        2.022 !m/s2 
-*elseif, envi, eq, 'test', then
+*elseif, envi, eq, 'hs156', then
 	heel = 3.5 !deg
 	trim = 2   !deg
 	side = 4.5 !deg
 	offl = 2.5 !deg
 	Fd = 1.0  !duty factor
 	Fh = 1.05 !hoist factor
-	alphax = 0.018    !rad/s2
-	alphay = 0.015     !rad/s2
-	az = 0   !m/s2 at jib tip
+    accelerations
+    alphax = accelerations(1,acas)
+    alphay = accelerations(2,acas)
+    ax = accelerations(3,acas)
+    ay = accelerations(4,acas)
+    az = accelerations(5,acas)
 *else
 	C*** invalid envi
 	*RETURN
@@ -957,7 +960,6 @@ C*** Number of iterations used
 C************************************************************************************************
 C*** Write load capacity and results summary ****************************************************
 C************************************************************************************************
-
 /out,curve4H,out,,append
 *vwrite,radiusA,SWLA,radiusJ,SWLJ,UTF,UTU,UFF,UFU,UP,UA,UJ,US,UF,UB
 (F8.2,F8.0,F8.2,F8.0,10F6.2)

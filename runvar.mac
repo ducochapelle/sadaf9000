@@ -1,8 +1,6 @@
 /out,curve4H,out
 C*** Jib lift, A-frame 60 deg, variable Jib offset 0 - 45 deg
 /out
-
-
 /out,curve4H,out,,append
 C*** Harbour lifts SADAF 2000 with adjustable jib
 *vwrite,'Reach-A','SWLA','Reach-J','SWLJ','UTF/UTU','UFF/UFU','UP','UA','UJ','US/UF','UB'
@@ -13,51 +11,91 @@ C*** Harbour lifts SADAF 2000 with adjustable jib
 (A)
 /out
 
-! /out,curve4h,out,,append
-! C*** original configuration
+
+/out,curve156,out
+C*** Jib lift, A-frame 60 deg, variable Jib offset 0 - 45 deg
+/out
+/out,curve156,out,,append
+C*** Harbour lifts SADAF 2000 with adjustable jib
+*vwrite,'Reach-A','SWLA','Reach-J','SWLJ','UTF/UTU','UFF/UFU','UP','UA','UJ','US/UF','UB','ACAS','Hs'
+(13A)
+*vwrite,'[m]','[t]','[m]','[t]','[-] ','[-] ','[-]','[-]','[-]','[-]','[-]','[-]','[-]'
+(13A)
+*vwrite
+(A)
+/out
+
+! /out,curve4H,out,,append
+! C*** hs050
 ! /out
-! *do, AR21,0, 45, 1
-  ! s2000_4H,1,60,   0,%AR21%,1500,2.0,0.08,1,10e3,1,harbour
+! *do, AR21,0, 45, 1 ! angle
+  ! s2000_4H,1,60,   0,%AR21%,1300,2.0,0.08,1,0,1,'hs050'
 ! *enddo
 
-/out,curve4h,out,,append
-C*** alternative 1
-/out
+! /out,curve4H,out,,append
+! C*** hs075
+! /out
+! *do, AR21,0, 45, 1 ! angle
+  ! s2000_4H,1,60,   0,%AR21%,1200,2.0,0.08,1,0,1,'hs075'
+! *enddo
+
+! /out,curve4H,out,,append
+! C*** hs100
+! /out
+! *do, AR21,0, 45, 1 ! angle
+  ! s2000_4H,1,60,   0,%AR21%,1200,2.0,0.08,1,0,1,'hs100'
+! *enddo
+
+! /out,curve4H,out,,append
+! C*** hs125
+! /out
+! *do, AR21,0, 45, 1 ! angle
+  ! s2000_4H,1,60,   0,%AR21%,1100,2.0,0.08,1,0,1,'hs125'
+! *enddo
+
+! /out,curve4H,out,,append
+! C*** Sheltered
+! /out
+! *do, AR21,0, 45, 1 ! angle
+  ! s2000_4H,1,60,   0,%AR21%,1100,2.0,0.08,1,0,1,'shelter'
+! *enddo
+
+! /out,curve4H,out,,append
+! C*** Harbour
+! /out
+! *do, AR21,0, 45, 1 ! angle
+  ! s2000_4H,1,60,   0,%AR21%,1600,2.0,0.08,1,0,1,'harbour'
+! *enddo
+
 *do, AR21,0, 45, 1 ! angle
-  s2000_4H,1,60,   0,%AR21%,2000,2.0,0.08,1,10e3,2,harbour
+  *do, AR22, 1, 156, 1 ! acceleration case
+    s2000_4H,1,60,   0,%AR21%,1300,2.0,0.08,1,0,1,'hs156',%AR22%
+/out,curve156,out,,append
+*vwrite,radiusA,SWLA,radiusJ,SWLJ,UTF,UTU,UFF,UFU,UP,UA,UJ,US,UF,UB,AR22,mod(AR22-1,4)*.25+0.5
+(F8.2,F8.0,F8.2,F8.0,10F6.2,F8.0,F8.2)
+/out
+  *enddo
 *enddo
 
-! /out,curve4h,out,,append
-! C*** alternative 2 with 4 meter extended
+
+
+
+! *do, AR21,0, 1, 1 ! angle
+  ! AR23 = 0 ! min lc identifier
+  ! AR24 = 1500 ! min lc magnitude; min so we start with a high number
+  ! *do, AR22, 1, 156, 4 ! acceleration case
+    ! s2000_4H,1,60,   0,%AR21%,1300,2.0,0.08,1,0,1,'hs156',%AR22%
+    if the load is smaller than the last smallest
+    then this is our new leading case
+    ! *if, SWLJ, lt, AR24, then   
+      ! AR23 = AR22               
+      ! AR24 = SWLJ
+    ! *endif
+  ! *enddo
+  run the leading case 
+  ! s2000_4H,1,60,   0,%AR21%,1300,2.0,0.08,1,0,1,'hs156',%AR23%
+! /out,curve156,out,,append
+! *vwrite,radiusA,SWLA,radiusJ,SWLJ,UTF,UTU,UFF,UFU,UP,UA,UJ,US,UF,UB,AR23,mod(AR23-1,4)*.25+0.5
+! (F8.2,F8.0,F8.2,F8.0,10F6.2,F8.0,F8.2)
 ! /out
-! *do, AR21,0, 45, 1
-  ! s2000_4H,1,60,   0,%AR21%,1500,2.0,0.08,1,4e3,3,harbour
 ! *enddo
-
-! /out,curve4h,out,,append
-! C*** alternative 2 with 8 meter extended
-! /out
-! *do, AR21,0, 45, 1
-  ! s2000_4H,1,60,   0,%AR21%,1500,2.0,0.08,1,8e3,3,harbour
-! *enddo
-
-! /out,curve4h,out,,append
-! C*** alternative 2 with 12 meter extended
-! /out
-! *do, AR21,0, 45, 1
-  ! s2000_4H,1,60,   0,%AR21%,1500,2.0,0.08,1,12e3,3,harbour
-! *enddo
-
-! /out,curve4h,out,,append
-! C*** alternative 3
-! /out
-! *do, AR21,0, 45, 1
-  ! s2000_4H,1,60,   0,%AR21%,1500,2.0,0.08,1,12e3,4,harbour
-! *enddo
-
-
-
-
-
-
-
